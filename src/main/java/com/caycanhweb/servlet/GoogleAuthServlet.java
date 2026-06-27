@@ -2,29 +2,28 @@ package com.caycanhweb.servlet;
 
 import com.caycanhweb.dao.UserDAO;
 import com.caycanhweb.model.User;
-import com.google.api.client.googleapis.auth.oauth2.GoogleAuthorizationCodeFlow;
-import com.google.api.client.googleapis.auth.oauth2.GoogleAuthorizationCodeRequestUrl;
 import com.google.api.client.googleapis.auth.oauth2.GoogleAuthorizationCodeTokenRequest;
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
 import com.google.api.client.googleapis.auth.oauth2.GoogleTokenResponse;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.gson.GsonFactory;
-import com.google.api.services.oauth2.Oauth2;
-import com.google.api.services.oauth2.model.Userinfo;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
 
 import java.io.IOException;
-import java.util.Arrays;
+import java.util.Collections;
 
 @WebServlet(urlPatterns = {"/auth/google", "/auth/google/callback"})
 public class GoogleAuthServlet extends HttpServlet {
 
     // ⚠️ Thay bằng Client ID và Client Secret từ Google Cloud Console
     private static final String CLIENT_ID     = "923648379028-4de1dn9ug14nk5jp2it8euufhlduqlpo.apps.googleusercontent.com";
-    private static final String CLIENT_SECRET = "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";
+    private static final String CLIENT_SECRET = "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";
     private static final String REDIRECT_URI  = "http://localhost:8080/CayCanhWeb/auth/google/callback";
 
     private static final NetHttpTransport HTTP_TRANSPORT = new NetHttpTransport();
@@ -39,16 +38,19 @@ public class GoogleAuthServlet extends HttpServlet {
         String uri = req.getRequestURI();
 
         if (uri.endsWith("/auth/google")) {
-            // ── Bước 1: Redirect đến Google ──────────
-            GoogleAuthorizationCodeFlow flow = buildFlow();
-            GoogleAuthorizationCodeRequestUrl url = flow.newAuthorizationUrl()
-                    .setRedirectUri(REDIRECT_URI)
-                    .setState("login");
+            // ── Bước 1: Redirect đến trang đăng nhập Google ──
+            String googleAuthUrl =
+                    "https://accounts.google.com/o/oauth2/v2/auth" +
+                            "?client_id="     + CLIENT_ID +
+                            "&redirect_uri="  + REDIRECT_URI +
+                            "&response_type=code" +
+                            "&scope=openid%20email%20profile" +
+                            "&access_type=offline";
 
-            resp.sendRedirect(url.build());
+            resp.sendRedirect(googleAuthUrl);
 
         } else if (uri.endsWith("/auth/google/callback")) {
-            // ── Bước 2: Google callback ───────────────
+            // ── Bước 2: Nhận code từ Google ──────────────────
             String code  = req.getParameter("code");
             String error = req.getParameter("error");
 
@@ -58,31 +60,43 @@ public class GoogleAuthServlet extends HttpServlet {
             }
 
             try {
-                // Đổi code lấy access token
-                GoogleTokenResponse tokenResponse = new GoogleAuthorizationCodeTokenRequest(
-                        HTTP_TRANSPORT, JSON_FACTORY,
-                        CLIENT_ID, CLIENT_SECRET,
-                        code, REDIRECT_URI
-                ).execute();
+                // Đổi authorization code lấy token
+                GoogleTokenResponse tokenResponse =
+                        new GoogleAuthorizationCodeTokenRequest(
+                                HTTP_TRANSPORT, JSON_FACTORY,
+                                "https://oauth2.googleapis.com/token",
+                                CLIENT_ID, CLIENT_SECRET,
+                                code, REDIRECT_URI
+                        ).execute();
 
-                // Lấy thông tin user từ Google
-                Oauth2 oauth2 = new Oauth2.Builder(HTTP_TRANSPORT, JSON_FACTORY,
-                        flow -> tokenResponse.createCredential(null))
-                        .setApplicationName("GreenShop")
+                String idTokenStr = tokenResponse.getIdToken();
+
+                // Verify ID token để lấy thông tin user
+                GoogleIdTokenVerifier verifier = new GoogleIdTokenVerifier.Builder(
+                        HTTP_TRANSPORT, JSON_FACTORY)
+                        .setAudience(Collections.singletonList(CLIENT_ID))
                         .build();
 
-                Userinfo googleUser = oauth2.userinfo().get().execute();
+                GoogleIdToken idToken = verifier.verify(idTokenStr);
 
-                String googleId = googleUser.getId();
-                String email    = googleUser.getEmail();
-                String name     = googleUser.getName();
+                if (idToken == null) {
+                    resp.sendRedirect(req.getContextPath() + "/login?error=google_failed");
+                    return;
+                }
+
+                // Lấy thông tin từ payload
+                GoogleIdToken.Payload payload = idToken.getPayload();
+                String googleId = payload.getSubject();
+                String email    = payload.getEmail();
+                String fullName = (String) payload.get("name");
 
                 // Đăng nhập hoặc tạo tài khoản mới
-                User user = userDAO.loginOrRegisterGoogle(googleId, email, name);
+                User user = userDAO.loginOrRegisterGoogle(googleId, email, fullName);
 
                 if (user != null) {
-                    req.getSession().setAttribute("loggedUser", user);
-                    req.getSession().setMaxInactiveInterval(60 * 60);
+                    HttpSession session = req.getSession();
+                    session.setAttribute("loggedUser", user);
+                    session.setMaxInactiveInterval(60 * 60);
 
                     if ("admin".equals(user.getRole())) {
                         resp.sendRedirect(req.getContextPath() + "/admin/dashboard");
@@ -98,16 +112,5 @@ public class GoogleAuthServlet extends HttpServlet {
                 resp.sendRedirect(req.getContextPath() + "/login?error=google_error");
             }
         }
-    }
-
-    private GoogleAuthorizationCodeFlow buildFlow() throws IOException {
-        return new GoogleAuthorizationCodeFlow.Builder(
-                HTTP_TRANSPORT, JSON_FACTORY,
-                CLIENT_ID, CLIENT_SECRET,
-                Arrays.asList(
-                        "https://www.googleapis.com/auth/userinfo.email",
-                        "https://www.googleapis.com/auth/userinfo.profile"
-                )
-        ).build();
     }
 }
