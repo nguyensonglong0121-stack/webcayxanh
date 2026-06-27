@@ -16,11 +16,10 @@ public class AuthFilter implements Filter {
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
             throws IOException, ServletException {
 
-        HttpServletRequest  req  = (HttpServletRequest)  request;
-        HttpServletResponse resp = (HttpServletResponse) response;
+        HttpServletRequest  req     = (HttpServletRequest)  request;
+        HttpServletResponse resp    = (HttpServletResponse) response;
         HttpSession         session = req.getSession(false);
-
-        String uri = req.getRequestURI();
+        String              uri     = req.getRequestURI();
 
         User loggedUser = (session != null) ? (User) session.getAttribute("loggedUser") : null;
 
@@ -30,10 +29,29 @@ public class AuthFilter implements Filter {
             return;
         }
 
-        // Vào /admin/* mà không phải admin → về trang chủ
-        if (uri.contains("/admin/") && !"admin".equals(loggedUser.getRole())) {
-            resp.sendRedirect(req.getContextPath() + "/home");
-            return;
+        String role = loggedUser.getRole();
+
+        // ── Phân quyền chi tiết cho /admin/* ────────────────────────
+        if (uri.contains("/admin/")) {
+
+            // Chỉ user thường không được vào admin
+            if ("user".equals(role)) {
+                resp.sendRedirect(req.getContextPath() + "/home");
+                return;
+            }
+
+            // Mod bị chặn các trang chỉ admin mới vào được
+            if ("mod".equals(role)) {
+                boolean allowed =
+                        uri.contains("/admin/products") ||
+                                uri.contains("/admin/orders");
+
+                if (!allowed) {
+                    // Redirect mod về trang mặc định của mod
+                    resp.sendRedirect(req.getContextPath() + "/admin/products");
+                    return;
+                }
+            }
         }
 
         chain.doFilter(request, response);

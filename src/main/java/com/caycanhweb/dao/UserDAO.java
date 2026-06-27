@@ -237,4 +237,15 @@ public class UserDAO {
             ps.executeUpdate();
         } catch (SQLException e) { e.printStackTrace(); }
     }
+    // ── Cập nhật role ────────────────────────────────
+    public boolean setRole(int userId, String role) {
+        String sql = "UPDATE users SET role=? WHERE user_id=?";
+        try (Connection con = DBConnection.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setString(1, role);
+            ps.setInt(2, userId);
+            return ps.executeUpdate() > 0;
+        } catch (SQLException e) { e.printStackTrace(); }
+        return false;
+    }
 }
