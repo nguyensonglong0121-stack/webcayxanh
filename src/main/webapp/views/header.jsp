@@ -51,6 +51,23 @@
                     <a href="${pageContext.request.contextPath}/profile">
                         <button class="btn-nav-login">👤 ${loggedUser.fullName}</button>
                     </a>
+
+
+                    <%-- Nút vào admin cho mod --%>
+                    <c:if test="${loggedUser.role == 'mod'}">
+                        <a href="${pageContext.request.contextPath}/admin/products">
+                            <button class="btn-nav-login" style="background:#2d5a3d;color:white">
+                                🛡️ Quản lý
+                            </button>
+                        </a>
+                    </c:if>
+
+                    <%-- Nút vào admin cho admin --%>
+                    <c:if test="${loggedUser.role == 'admin'}">
+                        <a href="${pageContext.request.contextPath}/admin/dashboard">
+                            <button class="btn-nav-login" style="background:#c9a84c">⚙️ Admin</button>
+                        </a>
+                    </c:if>
                     <c:if test="${loggedUser.role == 'admin'}">
                         <a href="${pageContext.request.contextPath}/admin/dashboard">
                             <button class="btn-nav-login" style="background:#c9a84c">⚙️ Admin</button>

@@ -1,5 +1,6 @@
 package com.caycanhweb.util;
 
+import com.caycanhweb.dao.PermissionDAO;
 import com.caycanhweb.model.User;
 import jakarta.servlet.*;
 import jakarta.servlet.annotation.WebFilter;
@@ -11,6 +12,8 @@ import java.io.IOException;
 
 @WebFilter(urlPatterns = {"/admin/*", "/checkout", "/profile", "/orders"})
 public class AuthFilter implements Filter {
+
+    private final PermissionDAO permissionDAO = new PermissionDAO();
 
     @Override
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
@@ -29,26 +32,49 @@ public class AuthFilter implements Filter {
             return;
         }
 
-        String role = loggedUser.getRole();
+        String role   = loggedUser.getRole();
+        int    userId = loggedUser.getUserId();
 
-        // ── Phân quyền chi tiết cho /admin/* ────────────────────────
         if (uri.contains("/admin/")) {
-
-            // Chỉ user thường không được vào admin
+            // User thường không được vào admin
             if ("user".equals(role)) {
                 resp.sendRedirect(req.getContextPath() + "/home");
                 return;
             }
 
-            // Mod bị chặn các trang chỉ admin mới vào được
+            // Admin được vào tất cả
+            if ("admin".equals(role)) {
+                chain.doFilter(request, response);
+                return;
+            }
+
+            // Mod + user có quyền → kiểm tra permission chi tiết
             if ("mod".equals(role)) {
-                boolean allowed =
-                        uri.contains("/admin/products") ||
-                                uri.contains("/admin/orders");
+                boolean allowed = false;
+
+                if (uri.contains("/admin/products")) {
+                    allowed = permissionDAO.hasPermission(userId, "products");
+                } else if (uri.contains("/admin/orders")) {
+                    allowed = permissionDAO.hasPermission(userId, "orders");
+                } else if (uri.contains("/admin/users")) {
+                    allowed = permissionDAO.hasPermission(userId, "users");
+                } else if (uri.contains("/admin/dashboard")) {
+                    allowed = false; // Mod không xem dashboard
+                }
+
+                // Cho phép vào trang no-permission (tránh redirect loop)
+                if (uri.contains("/admin/no-permission")) {
+                    chain.doFilter(request, response);
+                    return;
+                }
 
                 if (!allowed) {
-                    // Redirect mod về trang mặc định của mod
-                    resp.sendRedirect(req.getContextPath() + "/admin/products");
+                    resp.sendRedirect(req.getContextPath() + "/admin/no-permission");
+                    return;
+                }
+                if (!allowed) {
+                    // Redirect về trang đầu tiên mod có quyền
+                    resp.sendRedirect(req.getContextPath() + "/admin/no-permission");
                     return;
                 }
             }

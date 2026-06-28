@@ -70,18 +70,34 @@ public class CheckoutServlet extends HttpServlet {
         }
 
         // Tính tổng tiền
+        // Tính tổng tiền + phí ship GHN
         long subtotal = cart.stream().mapToLong(CartItem::getSubtotal).sum();
         long discount = 0;
-        // TODO: kiểm tra coupon từ DB nếu muốn mở rộng
 
-        long total = subtotal - discount;
+        long shippingFee = 0;
+        try {
+            String feeParam = req.getParameter("shippingFee");
+            if (feeParam != null && !feeParam.isBlank()) {
+                shippingFee = Long.parseLong(feeParam);
+            }
+        } catch (NumberFormatException ignored) {}
 
-        // Tạo Order object
+        long total = subtotal - discount + shippingFee;
+
+// Ghép địa chỉ đầy đủ từ GHN dropdowns
+        String streetAddress = req.getParameter("streetAddress") == null ? "" : req.getParameter("streetAddress").trim();
+        String wardName      = req.getParameter("ward_name")     == null ? "" : req.getParameter("ward_name").trim();
+        String districtName  = req.getParameter("district_name") == null ? "" : req.getParameter("district_name").trim();
+        String provinceName  = req.getParameter("province_name") == null ? "" : req.getParameter("province_name").trim();
+
+        String fullAddress = streetAddress + ", " + wardName + ", " + districtName + ", " + provinceName;
+
+// Tạo Order object
         Order order = new Order();
         order.setUserId(loggedUser != null ? loggedUser.getUserId() : 0);
         order.setReceiverName(receiverName);
         order.setReceiverPhone(receiverPhone);
-        order.setAddress(address);
+        order.setAddress(fullAddress);
         order.setTotalAmount(total);
         order.setDiscountAmount(discount);
         order.setCouponCode(couponCode.isEmpty() ? null : couponCode);

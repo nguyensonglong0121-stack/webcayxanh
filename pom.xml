@@ -65,6 +65,13 @@
       <artifactId>google-api-services-oauth2</artifactId>
       <version>v2-rev157-1.25.0</version>
     </dependency>
+    <!-- Gọi HTTP API (đã có sẵn trong Java 11+, không cần thêm) -->
+    <!-- JSON parsing -->
+    <dependency>
+      <groupId>com.google.code.gson</groupId>
+      <artifactId>gson</artifactId>
+      <version>2.10.1</version>
+    </dependency>
   </dependencies>
 
 

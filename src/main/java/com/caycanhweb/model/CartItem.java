@@ -39,4 +39,6 @@ public class CartItem {
     public String getUnitPriceFormatted() {
         return String.format("%,d", unitPrice).replace(',', '.');
     }
+
+
 }

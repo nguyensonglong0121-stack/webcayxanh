@@ -8,6 +8,21 @@
     request.setAttribute("sidebarUser", lu);
     request.setAttribute("sidebarRole", role);
     request.setAttribute("currUri",     currUri);
+
+    // Load permission nếu là mod
+    boolean canProducts = false, canOrders = false, canUsers = false;
+    if ("admin".equals(role)) {
+        canProducts = canOrders = canUsers = true;
+    } else if ("mod".equals(role) && lu != null) {
+        com.caycanhweb.dao.PermissionDAO pDao = new com.caycanhweb.dao.PermissionDAO();
+        com.caycanhweb.model.Permission perm  = pDao.getByUserId(lu.getUserId());
+        canProducts = perm.isCanProducts();
+        canOrders   = perm.isCanOrders();
+        canUsers    = perm.isCanUsers();
+    }
+    request.setAttribute("sidebarCanProducts", canProducts);
+    request.setAttribute("sidebarCanOrders",   canOrders);
+    request.setAttribute("sidebarCanUsers",     canUsers);
 %>
 <aside class="admin-sidebar">
     <div class="sidebar-brand">
@@ -31,24 +46,35 @@
             </a>
         </c:if>
 
-        <%-- Sản phẩm — Admin + Mod --%>
-        <a href="${pageContext.request.contextPath}/admin/products"
-           class="${currUri.contains('products') ? 'active' : ''}">
-            🌿 Sản phẩm
-        </a>
+        <%-- Sản phẩm — Admin hoặc Mod có quyền --%>
+        <c:if test="${sidebarCanProducts}">
+            <a href="${pageContext.request.contextPath}/admin/products"
+               class="${currUri.contains('products') ? 'active' : ''}">
+                🌿 Sản phẩm
+            </a>
+        </c:if>
 
-        <%-- Đơn hàng — Admin + Mod --%>
-        <a href="${pageContext.request.contextPath}/admin/orders"
-           class="${currUri.contains('orders') ? 'active' : ''}">
-            📦 Đơn hàng
-        </a>
+        <%-- Đơn hàng — Admin hoặc Mod có quyền --%>
+        <c:if test="${sidebarCanOrders}">
+            <a href="${pageContext.request.contextPath}/admin/orders"
+               class="${currUri.contains('orders') ? 'active' : ''}">
+                📦 Đơn hàng
+            </a>
+        </c:if>
 
-        <%-- Người dùng — chỉ Admin --%>
-        <c:if test="${sidebarRole == 'admin'}">
+        <%-- Người dùng — Admin hoặc Mod có quyền --%>
+        <c:if test="${sidebarCanUsers}">
             <a href="${pageContext.request.contextPath}/admin/users"
                class="${currUri.contains('users') ? 'active' : ''}">
                 👥 Người dùng
             </a>
+        </c:if>
+
+        <%-- Nếu mod không có quyền nào --%>
+        <c:if test="${sidebarRole == 'mod' && !sidebarCanProducts && !sidebarCanOrders && !sidebarCanUsers}">
+            <div style="padding:12px;color:rgba(255,255,255,.4);font-size:13px;font-style:italic">
+                Chưa được cấp quyền
+            </div>
         </c:if>
 
         <hr style="border-color:rgba(255,255,255,.1);margin:12px 0">
@@ -61,7 +87,6 @@
         </a>
     </nav>
 
-    <%-- Info box --%>
     <div style="margin-top:auto;padding:16px;border-top:1px solid rgba(255,255,255,.1)">
         <div style="font-size:12px;color:rgba(255,255,255,.5)">Đăng nhập với</div>
         <c:if test="${sidebarUser != null}">
