@@ -43,37 +43,41 @@ public class CheckoutServlet extends HttpServlet {
 
         req.setCharacterEncoding("UTF-8");
 
-        HttpSession session = req.getSession(false);
-        User loggedUser = session != null ? (User) session.getAttribute("loggedUser") : null;
+        HttpSession session  = req.getSession(false);
+        User loggedUser      = session != null ? (User) session.getAttribute("loggedUser") : null;
 
         @SuppressWarnings("unchecked")
-        List<CartItem> cart = session != null ? (List<CartItem>) session.getAttribute("cart") : null;
+        List<CartItem> cart  = session != null ? (List<CartItem>) session.getAttribute("cart") : null;
 
         if (cart == null || cart.isEmpty()) {
             resp.sendRedirect(req.getContextPath() + "/cart");
             return;
         }
 
-        // Lấy thông tin form
-        String receiverName  = req.getParameter("receiverName").trim();
-        String receiverPhone = req.getParameter("receiverPhone").trim();
-        String address       = req.getParameter("address").trim();
-        String paymentMethod = req.getParameter("paymentMethod");
-        String note          = req.getParameter("note");
-        String couponCode    = req.getParameter("couponCode") == null ? "" : req.getParameter("couponCode").trim();
+        // ── Lấy thông tin form (null-safe) ───────────────
+        String receiverName  = req.getParameter("receiverName")  != null ? req.getParameter("receiverName").trim()  : "";
+        String receiverPhone = req.getParameter("receiverPhone") != null ? req.getParameter("receiverPhone").trim() : "";
+        String streetAddress = req.getParameter("streetAddress") != null ? req.getParameter("streetAddress").trim() : "";
+        String wardName      = req.getParameter("ward_name")     != null ? req.getParameter("ward_name").trim()     : "";
+        String districtName  = req.getParameter("district_name") != null ? req.getParameter("district_name").trim() : "";
+        String provinceName  = req.getParameter("province_name") != null ? req.getParameter("province_name").trim() : "";
+        String paymentMethod = req.getParameter("paymentMethod") != null ? req.getParameter("paymentMethod")        : "cod";
+        String note          = req.getParameter("note")          != null ? req.getParameter("note")                 : "";
+        String couponCode    = req.getParameter("couponCode")    != null ? req.getParameter("couponCode").trim()    : "";
 
-        // Validate cơ bản
-        if (receiverName.isEmpty() || receiverPhone.isEmpty() || address.isEmpty()) {
+        // Ghép địa chỉ đầy đủ
+        String fullAddress = streetAddress + ", " + wardName + ", " + districtName + ", " + provinceName;
+
+        // ── Validate ──────────────────────────────────────
+        if (receiverName.isEmpty() || receiverPhone.isEmpty() || streetAddress.isEmpty()) {
             req.setAttribute("error", "Vui lòng điền đầy đủ thông tin giao hàng!");
             req.getRequestDispatcher("/views/checkout.jsp").forward(req, resp);
             return;
         }
 
-        // Tính tổng tiền
-        // Tính tổng tiền + phí ship GHN
-        long subtotal = cart.stream().mapToLong(CartItem::getSubtotal).sum();
-        long discount = 0;
-
+        // ── Tính tiền + phí ship ──────────────────────────
+        long subtotal    = cart.stream().mapToLong(CartItem::getSubtotal).sum();
+        long discount    = 0;
         long shippingFee = 0;
         try {
             String feeParam = req.getParameter("shippingFee");
@@ -84,15 +88,7 @@ public class CheckoutServlet extends HttpServlet {
 
         long total = subtotal - discount + shippingFee;
 
-// Ghép địa chỉ đầy đủ từ GHN dropdowns
-        String streetAddress = req.getParameter("streetAddress") == null ? "" : req.getParameter("streetAddress").trim();
-        String wardName      = req.getParameter("ward_name")     == null ? "" : req.getParameter("ward_name").trim();
-        String districtName  = req.getParameter("district_name") == null ? "" : req.getParameter("district_name").trim();
-        String provinceName  = req.getParameter("province_name") == null ? "" : req.getParameter("province_name").trim();
-
-        String fullAddress = streetAddress + ", " + wardName + ", " + districtName + ", " + provinceName;
-
-// Tạo Order object
+        // ── Tạo Order ────────────────────────────────────
         Order order = new Order();
         order.setUserId(loggedUser != null ? loggedUser.getUserId() : 0);
         order.setReceiverName(receiverName);
@@ -104,7 +100,7 @@ public class CheckoutServlet extends HttpServlet {
         order.setPaymentMethod(paymentMethod);
         order.setNote(note);
 
-        // Chuyển cart → list OrderItem
+        // ── Chuyển cart → OrderItem ───────────────────────
         List<OrderItem> items = new ArrayList<>();
         for (CartItem c : cart) {
             items.add(new OrderItem(
@@ -117,7 +113,7 @@ public class CheckoutServlet extends HttpServlet {
         int orderId = orderDAO.createOrder(order, items);
 
         if (orderId > 0) {
-            session.removeAttribute("cart");     // xóa giỏ hàng
+            session.removeAttribute("cart");
             resp.sendRedirect(req.getContextPath() + "/order-success?id=" + orderId);
         } else {
             req.setAttribute("error", "Đặt hàng thất bại, vui lòng thử lại!");

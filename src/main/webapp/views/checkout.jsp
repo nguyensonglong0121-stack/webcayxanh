@@ -1,6 +1,5 @@
 <%@ page contentType="text/html;charset=UTF-8" %>
-<%@ taglib prefix="c"   uri="jakarta.tags.core" %>
-<%@ taglib prefix="fmt" uri="jakarta.tags.fmt" %>
+<%@ taglib prefix="c" uri="jakarta.tags.core" %>
 <c:set var="pageTitle" value="Thanh toán — GreenShop" />
 <jsp:include page="header.jsp" />
 
@@ -10,16 +9,15 @@
   if (cart == null) cart = new java.util.ArrayList<>();
   long total = 0;
   for (com.caycanhweb.model.CartItem item : cart) total += item.getSubtotal();
-  request.setAttribute("cart",  cart);
-  request.setAttribute("total", total);
+  String contextPath = request.getContextPath();
 %>
 
 <section class="section">
   <div class="container">
     <div class="breadcrumb">
-      <a href="${pageContext.request.contextPath}/home">Trang chủ</a>
+      <a href="<%=contextPath%>/home">Trang chủ</a>
       <span>›</span>
-      <a href="${pageContext.request.contextPath}/cart">Giỏ hàng</a>
+      <a href="<%=contextPath%>/cart">Giỏ hàng</a>
       <span>›</span> Thanh toán
     </div>
 
@@ -31,7 +29,7 @@
 
     <div style="display:grid;grid-template-columns:1fr 380px;gap:32px;align-items:start">
 
-      <form action="${pageContext.request.contextPath}/checkout" method="post" id="checkoutForm">
+      <form action="<%=contextPath%>/checkout" method="post" id="checkoutForm">
 
         <!-- THÔNG TIN GIAO HÀNG -->
         <div style="background:white;border:1px solid var(--sand);border-radius:var(--radius);padding:24px;margin-bottom:20px">
@@ -100,7 +98,6 @@
           <h3 style="font-size:16px;font-weight:800;color:var(--green-dark);margin-bottom:16px">
             🚚 Phí vận chuyển (GHN)
           </h3>
-
           <div id="shippingBox" style="background:var(--cream);border-radius:8px;padding:16px">
             <div id="shippingLoading" style="display:none;color:var(--muted);font-size:14px">
               ⏳ Đang tính phí vận chuyển...
@@ -111,16 +108,13 @@
                   <div style="font-weight:700;font-size:14px">🚚 Giao Hàng Nhanh (GHN)</div>
                   <div style="font-size:12px;color:var(--muted)">Giao hàng 2-3 ngày làm việc</div>
                 </div>
-                <div style="font-weight:800;font-size:18px;color:var(--green-mid)" id="shippingFee">
-                  0đ
-                </div>
+                <div style="font-weight:800;font-size:18px;color:var(--green-mid)" id="shippingFeeText">0đ</div>
               </div>
             </div>
             <div id="shippingEmpty" style="color:var(--muted);font-size:13px;font-style:italic">
               Chọn địa chỉ giao hàng để xem phí ship
             </div>
           </div>
-
           <input type="hidden" name="shippingFee" id="shippingFeeInput" value="0">
         </div>
 
@@ -129,7 +123,6 @@
           <h3 style="font-size:16px;font-weight:800;color:var(--green-dark);margin-bottom:16px">
             💳 Phương thức thanh toán
           </h3>
-
           <label style="display:flex;align-items:center;gap:12px;padding:14px;
                          border:2px solid var(--green-mid);border-radius:10px;
                          cursor:pointer;margin-bottom:10px;background:var(--cream)">
@@ -139,7 +132,6 @@
               <div style="font-size:12px;color:var(--muted)">Trả tiền mặt khi nhận được hàng</div>
             </div>
           </label>
-
           <label style="display:flex;align-items:center;gap:12px;padding:14px;
                          border:1.5px solid var(--sand);border-radius:10px;cursor:pointer">
             <input type="radio" name="paymentMethod" value="transfer">
@@ -152,48 +144,42 @@
 
         <!-- MÃ GIẢM GIÁ -->
         <div style="background:white;border:1px solid var(--sand);border-radius:var(--radius);padding:24px;margin-bottom:20px">
-          <h3 style="font-size:16px;font-weight:800;color:var(--green-dark);margin-bottom:12px">
-            🎟️ Mã giảm giá
-          </h3>
+          <h3 style="font-size:16px;font-weight:800;color:var(--green-dark);margin-bottom:12px">🎟️ Mã giảm giá</h3>
           <div style="display:flex;gap:10px">
-            <input type="text" name="couponCode" id="couponCode" class="form-control"
-                   placeholder="Nhập mã: XANH10, GIAM50K...">
+            <input type="text" name="couponCode" id="couponCode" class="form-control" placeholder="Nhập mã...">
             <button type="button" class="btn btn-gold" onclick="checkCoupon()">Áp dụng</button>
           </div>
           <div id="couponResult" style="font-size:13px;margin-top:8px"></div>
         </div>
 
-        <button type="submit" class="btn btn-green btn-block btn-lg">
-          ✅ Xác nhận đặt hàng
-        </button>
+        <button type="submit" class="btn btn-green btn-block btn-lg">✅ Xác nhận đặt hàng</button>
       </form>
 
       <!-- TÓM TẮT ĐƠN HÀNG -->
       <div style="position:sticky;top:80px">
         <div style="background:white;border:1px solid var(--sand);border-radius:var(--radius);padding:24px">
-          <h3 style="font-size:16px;font-weight:800;color:var(--green-dark);margin-bottom:20px">
-            📋 Đơn hàng của bạn
-          </h3>
-
-          <c:forEach var="item" items="${cart}">
-            <div style="display:flex;gap:12px;margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--sand)">
-              <img src="${pageContext.request.contextPath}/uploads/${item.mainImage}"
-                   onerror="this.src='https://placehold.co/56x56/a8d5a2/1a3a2a?text=🌿'"
-                   style="width:56px;height:56px;border-radius:8px;object-fit:cover"
-                   alt="${item.productName}">
-              <div style="flex:1">
-                <div style="font-weight:600;font-size:13px">${item.productName}</div>
-                <div style="font-size:12px;color:var(--muted)">x${item.quantity}</div>
-              </div>
-              <div style="font-weight:700;font-size:13px;color:var(--green-mid)">
-                  ${item.subtotalFormatted}đ
-              </div>
+          <h3 style="font-size:16px;font-weight:800;color:var(--green-dark);margin-bottom:20px">📋 Đơn hàng</h3>
+          <%
+            for (com.caycanhweb.model.CartItem item : cart) {
+          %>
+          <div style="display:flex;gap:12px;margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--sand)">
+            <img src="<%=contextPath%>/uploads/<%=item.getMainImage()%>"
+                 onerror="this.src='https://placehold.co/56x56/a8d5a2/1a3a2a?text=🌿'"
+                 style="width:56px;height:56px;border-radius:8px;object-fit:cover" alt="">
+            <div style="flex:1">
+              <div style="font-weight:600;font-size:13px"><%=item.getProductName()%></div>
+              <div style="font-size:12px;color:var(--muted)">x<%=item.getQuantity()%></div>
             </div>
-          </c:forEach>
-
+            <div style="font-weight:700;font-size:13px;color:var(--green-mid)">
+              <%=item.getSubtotalFormatted()%>đ
+            </div>
+          </div>
+          <%
+            }
+          %>
           <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--sand)">
             <span style="font-size:14px">Tạm tính</span>
-            <span style="font-weight:700" id="subtotalDisplay">${total}đ</span>
+            <span style="font-weight:700" id="subtotalDisplay"><%=String.format("%,d", total).replace(',', '.')%>đ</span>
           </div>
           <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--sand)">
             <span style="font-size:14px">Phí vận chuyển</span>
@@ -202,7 +188,7 @@
           <div style="display:flex;justify-content:space-between;padding-top:12px">
             <span style="font-size:17px;font-weight:800;color:var(--green-dark)">Tổng cộng</span>
             <span style="font-size:20px;font-weight:800;color:var(--green-mid)" id="grandTotal">
-              ${total}đ
+              <%=String.format("%,d", total).replace(',', '.')%>đ
             </span>
           </div>
         </div>
@@ -211,108 +197,95 @@
   </div>
 </section>
 
-
-
 <script>
-  const CTX        = '<%=request.getContextPath()%>';
-  const BASE_TOTAL = parseInt('<%=request.getAttribute("total") != null ? request.getAttribute("total").toString() : "0"%>') || 0;
+  var CTX        = '<%=contextPath%>';
+  var BASE_TOTAL = <%=total%>;
 
-
-
-  // ── Load Tỉnh/Thành khi trang load ───────────────
-  window.addEventListener('DOMContentLoaded', () => {
+  window.addEventListener('DOMContentLoaded', function() {
     fetch(CTX + '/ghn/provinces')
-            .then(r => r.json())
-            .then(data => {
-              const sel = document.getElementById('province');
-              data.sort((a,b) => a.ProvinceName.localeCompare(b.ProvinceName, 'vi'));
-              data.forEach(p => {
-                const opt = new Option(p.ProvinceName, p.ProvinceID);
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+              var sel = document.getElementById('province');
+              data.sort(function(a,b) { return a.ProvinceName.localeCompare(b.ProvinceName, 'vi'); });
+              data.forEach(function(p) {
+                var opt = document.createElement('option');
+                opt.value = p.ProvinceID;
+                opt.text  = p.ProvinceName;
                 sel.add(opt);
               });
-            });
+            })
+            .catch(function(e) { console.error('Lỗi load tỉnh:', e); });
   });
 
-  // ── Load Quận/Huyện ───────────────────────────────
   function loadDistricts(provinceId) {
     if (!provinceId) return;
-    const pSel = document.getElementById('province');
-    document.getElementById('province_name').value =
-            pSel.options[pSel.selectedIndex].text;
-
-    const dSel = document.getElementById('district');
-    const wSel = document.getElementById('ward');
+    var pSel = document.getElementById('province');
+    document.getElementById('province_name').value = pSel.options[pSel.selectedIndex].text;
+    var dSel = document.getElementById('district');
+    var wSel = document.getElementById('ward');
     dSel.innerHTML = '<option value="">-- Chọn quận/huyện --</option>';
     wSel.innerHTML = '<option value="">-- Chọn phường/xã --</option>';
     dSel.disabled = false;
     wSel.disabled = true;
     resetFee();
-
     fetch(CTX + '/ghn/districts?province_id=' + provinceId)
-            .then(r => r.json())
-            .then(data => {
-              data.sort((a,b) => a.DistrictName.localeCompare(b.DistrictName,'vi'));
-              data.forEach(d => dSel.add(new Option(d.DistrictName, d.DistrictID)));
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+              data.sort(function(a,b) { return a.DistrictName.localeCompare(b.DistrictName,'vi'); });
+              data.forEach(function(d) {
+                var opt = document.createElement('option');
+                opt.value = d.DistrictID;
+                opt.text  = d.DistrictName;
+                dSel.add(opt);
+              });
             });
   }
 
-  // ── Load Phường/Xã ────────────────────────────────
   function loadWards(districtId) {
     if (!districtId) return;
-    const dSel = document.getElementById('district');
-    document.getElementById('district_name').value =
-            dSel.options[dSel.selectedIndex].text;
-
-    const wSel = document.getElementById('ward');
+    var dSel = document.getElementById('district');
+    document.getElementById('district_name').value = dSel.options[dSel.selectedIndex].text;
+    var wSel = document.getElementById('ward');
     wSel.innerHTML = '<option value="">-- Chọn phường/xã --</option>';
     wSel.disabled = false;
     resetFee();
-
     fetch(CTX + '/ghn/wards?district_id=' + districtId)
-            .then(r => r.json())
-            .then(data => {
-              data.sort((a,b) => a.WardName.localeCompare(b.WardName,'vi'));
-              data.forEach(w => wSel.add(new Option(w.WardName, w.WardCode)));
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+              data.sort(function(a,b) { return a.WardName.localeCompare(b.WardName,'vi'); });
+              data.forEach(function(w) {
+                var opt = document.createElement('option');
+                opt.value = w.WardCode;
+                opt.text  = w.WardName;
+                wSel.add(opt);
+              });
             });
   }
 
-  // ── Tính phí vận chuyển ──────────────────────────
   function calculateFee() {
-    const districtSel = document.getElementById('district');
-    const wardSel     = document.getElementById('ward');
-
-    const districtId = districtSel.value;
-    const wardCode   = wardSel.value;
-
-    // Chưa chọn đủ thì không gọi API
-    if (!districtId || districtId === '' || !wardCode || wardCode === '') return;
-
-    document.getElementById('ward_name').value =
-            wardSel.options[wardSel.selectedIndex].text;
-
+    var districtId = document.getElementById('district').value;
+    var wardCode   = document.getElementById('ward').value;
+    if (!districtId || !wardCode) return;
+    var wSel = document.getElementById('ward');
+    document.getElementById('ward_name').value = wSel.options[wSel.selectedIndex].text;
     document.getElementById('shippingEmpty').style.display   = 'none';
     document.getElementById('shippingLoading').style.display = 'block';
     document.getElementById('shippingResult').style.display  = 'none';
-
-    fetch(`${CTX}/ghn/fee?district_id=${encodeURIComponent(districtId)}&ward_code=${encodeURIComponent(wardCode)}`)
-            .then(r => {
-              if (!r.ok) throw new Error('HTTP ' + r.status);
-              return r.json();
-            })
-            .then(data => {
-              const fee = data.fee || 0;
+    fetch(CTX + '/ghn/fee?district_id=' + districtId + '&ward_code=' + encodeURIComponent(wardCode))
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+              var fee = data.fee || 0;
               document.getElementById('shippingLoading').style.display = 'none';
               document.getElementById('shippingResult').style.display  = 'block';
-              document.getElementById('shippingFee').textContent       = formatVND(fee) + 'đ';
+              document.getElementById('shippingFeeText').textContent   = formatVND(fee) + 'đ';
               document.getElementById('shippingFeeInput').value        = fee;
               document.getElementById('feeDisplay').textContent        = formatVND(fee) + 'đ';
               document.getElementById('grandTotal').textContent        = formatVND(BASE_TOTAL + fee) + 'đ';
             })
-            .catch(err => {
-              console.error('Lỗi tính phí ship:', err);
+            .catch(function(e) {
               document.getElementById('shippingLoading').style.display = 'none';
               document.getElementById('shippingEmpty').style.display   = 'block';
-              document.getElementById('shippingEmpty').textContent     = '⚠️ Không tính được phí ship, vui lòng thử lại';
+              document.getElementById('shippingEmpty').textContent     = '⚠️ Không tính được phí ship';
             });
   }
 
@@ -330,29 +303,12 @@
     return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
   }
 
-  // Highlight phương thức thanh toán
-  document.querySelectorAll('input[name="paymentMethod"]').forEach(radio => {
-    radio.addEventListener('change', function() {
-      document.querySelectorAll('input[name="paymentMethod"]').forEach(r => {
-        r.closest('label').style.borderColor = 'var(--sand)';
-        r.closest('label').style.background  = 'white';
-      });
-      this.closest('label').style.borderColor = 'var(--green-mid)';
-      this.closest('label').style.background  = 'var(--cream)';
-    });
-  });
-
   function checkCoupon() {
-    const code = document.getElementById('couponCode').value.trim().toUpperCase();
-    const res  = document.getElementById('couponResult');
-    const coupons = { 'XANH10': '10%', 'GIAM50K': '50,000đ', 'CANH20': '20%' };
-    if (coupons[code]) {
-      res.textContent = '✅ Mã hợp lệ! Giảm ' + coupons[code];
-      res.style.color = 'green';
-    } else if (code) {
-      res.textContent = '❌ Mã không hợp lệ';
-      res.style.color = 'red';
-    }
+    var code = document.getElementById('couponCode').value.trim().toUpperCase();
+    var res  = document.getElementById('couponResult');
+    var coupons = {'XANH10':'10%','GIAM50K':'50.000đ','CANH20':'20%'};
+    if (coupons[code]) { res.textContent = '✅ Mã hợp lệ! Giảm ' + coupons[code]; res.style.color = 'green'; }
+    else if (code)     { res.textContent = '❌ Mã không hợp lệ'; res.style.color = 'red'; }
   }
 </script>
 
