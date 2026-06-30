@@ -6,8 +6,13 @@
     java.util.List<?> cart =
             (java.util.List<?>) session.getAttribute("cart");
     int cartCount = (cart != null) ? cart.size() : 0;
+    int wishlistCount = 0;
+    if (loggedUser != null) {
+        wishlistCount = new com.caycanhweb.dao.WishlistDAO().countByUser(loggedUser.getUserId());
+    }
     pageContext.setAttribute("loggedUser", loggedUser);
     pageContext.setAttribute("cartCount",  cartCount);
+    pageContext.setAttribute("wishlistCount", wishlistCount);
 %>
 <!DOCTYPE html>
 <html lang="vi">
@@ -37,6 +42,15 @@
         </form>
 
         <div class="navbar-actions">
+            <a href="${pageContext.request.contextPath}/wishlist">
+                <button class="btn-nav-icon" title="Sản phẩm yêu thích">
+                    ♥
+                    <c:if test="${wishlistCount > 0}">
+                        <span class="cart-badge" id="wishlistBadge">${wishlistCount}</span>
+                    </c:if>
+                </button>
+            </a>
+
             <a href="${pageContext.request.contextPath}/cart">
                 <button class="btn-nav-icon">
                     🛒
@@ -63,11 +77,6 @@
                     </c:if>
 
                     <%-- Nút vào admin cho admin --%>
-                    <c:if test="${loggedUser.role == 'admin'}">
-                        <a href="${pageContext.request.contextPath}/admin/dashboard">
-                            <button class="btn-nav-login" style="background:#c9a84c">⚙️ Admin</button>
-                        </a>
-                    </c:if>
                     <c:if test="${loggedUser.role == 'admin'}">
                         <a href="${pageContext.request.contextPath}/admin/dashboard">
                             <button class="btn-nav-login" style="background:#c9a84c">⚙️ Admin</button>

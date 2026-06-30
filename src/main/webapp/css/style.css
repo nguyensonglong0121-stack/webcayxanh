@@ -82,6 +82,7 @@ input, select, textarea, button { font-family: inherit; font-size: inherit; }
     transition: var(--transition);
 }
 .btn-nav-icon:hover { background: rgba(255,255,255,.2); }
+.btn-nav-icon:has(.cart-badge) { color: #f87171; }
 .cart-badge {
     position: absolute; top: -4px; right: -4px;
     background: var(--gold);
@@ -203,6 +204,7 @@ input, select, textarea, button { font-family: inherit; font-size: inherit; }
     background: white; border-radius: var(--radius);
     border: 1px solid var(--sand);
     overflow: hidden;
+    position: relative;
     transition: transform var(--transition), box-shadow var(--transition);
 }
 .product-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-md); }
@@ -227,6 +229,55 @@ input, select, textarea, button { font-family: inherit; font-size: inherit; }
     background: var(--gold); color: white;
     font-size: 11px; font-weight: 700;
     padding: 3px 10px; border-radius: 20px;
+}
+
+/* ── WISHLIST HEART BUTTON ───────────────────────────────── */
+.btn-wishlist-toggle {
+    position: absolute;
+    top: 10px; right: 10px;
+    width: 32px; height: 32px;
+    border: none; border-radius: 50%;
+    background: rgba(255,255,255,0.9);
+    color: #cbd5e1;
+    font-size: 17px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+    transition: transform .15s ease, color .15s ease, background .15s ease;
+    z-index: 5;
+}
+.btn-wishlist-toggle:hover { transform: scale(1.12); }
+.btn-wishlist-toggle.active { color: #ef4444; }
+.btn-wishlist-toggle.pulse { animation: heartPulse .35s ease; }
+@keyframes heartPulse {
+    0%   { transform: scale(1); }
+    40%  { transform: scale(1.35); }
+    100% { transform: scale(1); }
+}
+/* Heart button on product-detail page — matches navbar heart icon style */
+.btn-wishlist-detail {
+    position: relative;
+    width: 48px; height: 48px;
+    border: none; border-radius: 8px;
+    background: var(--green-dark); color: white;
+    font-size: 20px; line-height: 1;
+    display: inline-flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    transition: transform .15s ease, color .15s ease, background .15s ease;
+    flex-shrink: 0;
+    align-self: center;
+}
+.btn-wishlist-detail:hover { background: var(--green-mid); transform: scale(1.06); }
+.btn-wishlist-detail.active { color: #f87171; }
+.btn-wishlist-detail.pulse { animation: heartPulse .35s ease; }
+.btn-wishlist-detail .heart-count {
+    position: absolute; top: -6px; right: -6px;
+    background: var(--gold);
+    color: white; font-size: 10px; font-weight: 800;
+    min-width: 18px; height: 18px;
+    border-radius: 9px; padding: 0 4px;
+    display: flex; align-items: center; justify-content: center;
+    line-height: 1;
 }
 .product-card-body { padding: 14px; }
 .product-card-name {

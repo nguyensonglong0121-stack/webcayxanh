@@ -106,7 +106,7 @@
                     <c:otherwise>
                         <div class="product-grid" style="grid-template-columns:repeat(auto-fill,minmax(200px,1fr))">
                             <c:forEach var="p" items="${products}">
-                                <div class="product-card">
+                                <div class="product-card" id="prodCard-${p.productId}">
                                     <a href="${pageContext.request.contextPath}/product?id=${p.productId}">
                                         <div class="product-card-img">
                                             <img src="${pageContext.request.contextPath}/uploads/${p.mainImage}"
@@ -116,6 +116,10 @@
                                             <c:if test="${p.featured}"><span class="badge-featured">⭐</span></c:if>
                                         </div>
                                     </a>
+                                    <button type="button"
+                                            class="btn-wishlist-toggle ${wishlistIds.contains(p.productId) ? 'active' : ''}"
+                                            data-product-id="${p.productId}"
+                                            title="Yêu thích">♥</button>
                                     <div class="product-card-body">
                                         <a href="${pageContext.request.contextPath}/product?id=${p.productId}">
                                             <div class="product-card-name">${p.name}</div>
@@ -185,5 +189,35 @@
         </div>
     </div>
 </section>
+
+<script>
+    document.querySelectorAll('.btn-wishlist-toggle').forEach(btn => {
+        btn.addEventListener('click', function () {
+            const productId = this.dataset.productId;
+            fetch('${pageContext.request.contextPath}/wishlist', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: 'action=toggle&productId=' + productId
+            })
+                .then(res => {
+                    if (res.status === 401) {
+                        window.location.href = '${pageContext.request.contextPath}/login';
+                        return null;
+                    }
+                    return res.json();
+                })
+                .then(data => {
+                    if (!data) return;
+                    this.classList.toggle('active', data.added);
+                    this.classList.add('pulse');
+                    setTimeout(() => this.classList.remove('pulse'), 350);
+                })
+                .catch(err => console.error(err));
+        });
+    });
+</script>
 
 <jsp:include page="footer.jsp" />

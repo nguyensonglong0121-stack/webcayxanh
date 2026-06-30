@@ -85,23 +85,32 @@
                 </div>
 
                 <!-- Thêm giỏ hàng -->
+                <div style="display:flex;gap:12px;align-items:center">
+                    <c:if test="${product.stock > 0}">
+                        <form action="${pageContext.request.contextPath}/cart" method="post"
+                              style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;flex:1">
+                            <input type="hidden" name="action"    value="add">
+                            <input type="hidden" name="productId" value="${product.productId}">
+
+                            <div class="qty-control">
+                                <button type="button" class="qty-minus">−</button>
+                                <input type="number" name="quantity" id="qtyInput" value="1" min="1" max="${product.stock}">
+                                <button type="button" class="qty-plus">+</button>
+                            </div>
+
+                            <button type="submit" class="btn btn-green btn-lg" style="flex:1;min-width:180px">
+                                🛒 Thêm vào giỏ hàng
+                            </button>
+                        </form>
+                    </c:if>
+                    <button type="button"
+                            class="btn-wishlist-detail ${inWishlist ? 'active' : ''}"
+                            id="wishlistDetailBtn"
+                            data-product-id="${product.productId}"
+                            title="Yêu thích">♥</button>
+                </div>
+
                 <c:if test="${product.stock > 0}">
-                    <form action="${pageContext.request.contextPath}/cart" method="post"
-                          style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
-                        <input type="hidden" name="action"    value="add">
-                        <input type="hidden" name="productId" value="${product.productId}">
-
-                        <div class="qty-control">
-                            <button type="button" class="qty-minus">−</button>
-                            <input type="number" name="quantity" id="qtyInput" value="1" min="1" max="${product.stock}">
-                            <button type="button" class="qty-plus">+</button>
-                        </div>
-
-                        <button type="submit" class="btn btn-green btn-lg" style="flex:1;min-width:180px">
-                            🛒 Thêm vào giỏ hàng
-                        </button>
-                    </form>
-
                     <a href="${pageContext.request.contextPath}/checkout" class="btn btn-gold btn-block btn-lg"
                        style="margin-top:12px">
                         ⚡ Mua ngay
@@ -201,7 +210,7 @@
                 </h2>
                 <div class="product-grid">
                     <c:forEach var="p" items="${relatedProducts}">
-                        <div class="product-card">
+                        <div class="product-card" id="prodCard-${p.productId}">
                             <a href="${pageContext.request.contextPath}/product?id=${p.productId}">
                                 <div class="product-card-img">
                                     <img src="${pageContext.request.contextPath}/uploads/${p.mainImage}"
@@ -210,6 +219,10 @@
                                     <c:if test="${p.salePrice > 0 and p.salePrice < p.price}"><span class="badge-sale">SALE</span></c:if>
                                 </div>
                             </a>
+                            <button type="button"
+                                    class="btn-wishlist-toggle ${relatedWishlistIds.contains(p.productId) ? 'active' : ''}"
+                                    data-product-id="${p.productId}"
+                                    title="Yêu thích">♥</button>
                             <div class="product-card-body">
                                 <a href="${pageContext.request.contextPath}/product?id=${p.productId}">
                                     <div class="product-card-name">${p.name}</div>
@@ -257,14 +270,50 @@
     });
 
     // Quantity control
-    document.querySelector('.qty-minus').addEventListener('click', () => {
+    const qtyMinus = document.querySelector('.qty-minus');
+    const qtyPlus  = document.querySelector('.qty-plus');
+    if (qtyMinus) qtyMinus.addEventListener('click', () => {
         const inp = document.getElementById('qtyInput');
         if (parseInt(inp.value) > 1) inp.value = parseInt(inp.value) - 1;
     });
-    document.querySelector('.qty-plus').addEventListener('click', () => {
+    if (qtyPlus) qtyPlus.addEventListener('click', () => {
         const inp = document.getElementById('qtyInput');
         const max = parseInt(inp.max);
         if (parseInt(inp.value) < max) inp.value = parseInt(inp.value) + 1;
+    });
+
+    // Wishlist toggle — works for both the big heart button and card hearts
+    function toggleWishlist(btn) {
+        const productId = btn.dataset.productId;
+        fetch('${pageContext.request.contextPath}/wishlist', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: 'action=toggle&productId=' + productId
+        })
+            .then(res => {
+                if (res.status === 401) {
+                    window.location.href = '${pageContext.request.contextPath}/login';
+                    return null;
+                }
+                return res.json();
+            })
+            .then(data => {
+                if (!data) return;
+                btn.classList.toggle('active', data.added);
+                btn.classList.add('pulse');
+                setTimeout(() => btn.classList.remove('pulse'), 350);
+            })
+            .catch(err => console.error(err));
+    }
+
+    const mainWishBtn = document.getElementById('wishlistDetailBtn');
+    if (mainWishBtn) mainWishBtn.addEventListener('click', () => toggleWishlist(mainWishBtn));
+
+    document.querySelectorAll('.btn-wishlist-toggle').forEach(btn => {
+        btn.addEventListener('click', () => toggleWishlist(btn));
     });
 </script>
 
