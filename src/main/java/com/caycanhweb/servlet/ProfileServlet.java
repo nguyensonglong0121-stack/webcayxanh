@@ -67,6 +67,30 @@ public class ProfileServlet extends HttpServlet {
                 req.setAttribute("user", userDAO.getById(loggedUser.getUserId()));
                 req.getRequestDispatcher("/views/profile.jsp").forward(req, resp);
             }
+        } else if ("cancelOrder".equals(req.getParameter("action"))) {
+            boolean cancelled = false;
+            try {
+                int orderId = Integer.parseInt(req.getParameter("orderId"));
+                var order = orderDAO.getById(orderId);
+                // chỉ cho hủy đơn của chính mình và đang ở trạng thái chờ xác nhận
+                if (order != null && order.getUserId() == loggedUser.getUserId()
+                        && "pending".equals(order.getStatus())) {
+                    cancelled = orderDAO.updateStatus(orderId, "cancelled");
+                }
+            } catch (NumberFormatException ignored) {}
+            resp.sendRedirect(req.getContextPath() + "/orders" + (cancelled ? "?cancelled=1" : ""));
+        } else if ("deleteOrder".equals(req.getParameter("action"))) {
+            boolean deleted = false;
+            try {
+                int orderId = Integer.parseInt(req.getParameter("orderId"));
+                var order = orderDAO.getById(orderId);
+                // chỉ cho xóa đơn của chính mình và đơn đã ở trạng thái "Đã hủy"
+                if (order != null && order.getUserId() == loggedUser.getUserId()
+                        && "cancelled".equals(order.getStatus())) {
+                    deleted = orderDAO.deleteOrder(orderId);
+                }
+            } catch (NumberFormatException ignored) {}
+            resp.sendRedirect(req.getContextPath() + "/orders" + (deleted ? "?deleted=1" : ""));
         }
     }
 }

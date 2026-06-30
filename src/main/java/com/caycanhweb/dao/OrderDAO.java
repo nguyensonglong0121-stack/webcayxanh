@@ -143,6 +143,32 @@ public class OrderDAO {
         return false;
     }
 
+    // ── Xóa đơn hàng (kèm các item liên quan) ─────────────────────
+    public boolean deleteOrder(int orderId) {
+        String sqlItems = "DELETE FROM order_items WHERE order_id=?";
+        String sqlOrder = "DELETE FROM orders WHERE order_id=?";
+        try (Connection con = DBConnection.getConnection()) {
+            con.setAutoCommit(false);
+            try {
+                try (PreparedStatement ps = con.prepareStatement(sqlItems)) {
+                    ps.setInt(1, orderId);
+                    ps.executeUpdate();
+                }
+                boolean deleted;
+                try (PreparedStatement ps = con.prepareStatement(sqlOrder)) {
+                    ps.setInt(1, orderId);
+                    deleted = ps.executeUpdate() > 0;
+                }
+                con.commit();
+                return deleted;
+            } catch (SQLException e) {
+                con.rollback();
+                throw e;
+            }
+        } catch (SQLException e) { e.printStackTrace(); }
+        return false;
+    }
+
     // ── Thống kê cho dashboard ────────────────────────────────────
     public long getTotalRevenue() {
         String sql = "SELECT IFNULL(SUM(total_amount),0) FROM orders WHERE status='done'";
