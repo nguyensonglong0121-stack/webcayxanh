@@ -40,6 +40,8 @@ public class ProfileServlet extends HttpServlet {
         User loggedUser = session != null ? (User) session.getAttribute("loggedUser") : null;
         if (loggedUser == null) { resp.sendRedirect(req.getContextPath() + "/login"); return; }
 
+
+
         if ("updateProfile".equals(req.getParameter("action"))) {
             loggedUser.setFullName(req.getParameter("fullName").trim());
             loggedUser.setPhone(req.getParameter("phone").trim());

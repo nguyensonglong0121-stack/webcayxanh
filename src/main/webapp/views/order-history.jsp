@@ -15,6 +15,9 @@
     </div>
 
     <h1 class="section-title" style="margin-bottom:28px">📋 Lịch sử đơn hàng</h1>
+    <c:if test="${param.cancelled == '1'}">
+      <div class="alert alert-success">✅ Đã hủy đơn hàng thành công!</div>
+    </c:if>
 
     <c:choose>
       <c:when test="${empty orders}">
@@ -49,6 +52,17 @@
                     </div>
                   </div>
                 </div>
+                  <%-- Nút hủy đơn — chỉ hiện khi đơn đang chờ xác nhận --%>
+                <c:if test="${o.status == 'pending'}">
+                  <div style="margin-top:12px">
+                    <form action="${pageContext.request.contextPath}/orders" method="post"
+                          onsubmit="return confirm('Bạn chắc chắn muốn hủy đơn #${o.orderId}?')">
+                      <input type="hidden" name="action"  value="cancel">
+                      <input type="hidden" name="orderId" value="${o.orderId}">
+                      <button type="submit" class="btn btn-danger btn-sm">❌ Hủy đơn hàng</button>
+                    </form>
+                  </div>
+                </c:if>
 
                 <div style="display:flex;align-items:center;gap:12px">
                     <%-- Trạng thái badge --%>
