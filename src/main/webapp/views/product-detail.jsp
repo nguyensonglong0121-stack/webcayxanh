@@ -160,32 +160,50 @@
         </div>
 
         <div id="tab-review" class="tab-content" style="padding:20px 0">
-            <!-- Form viết review -->
+
+            <!-- Thông báo sau khi gửi đánh giá -->
+            <c:if test="${not empty reviewSuccess}">
+                <div class="alert alert-success" style="margin-bottom:16px">${reviewSuccess}</div>
+            </c:if>
+            <c:if test="${not empty reviewError}">
+                <div class="alert alert-danger" style="margin-bottom:16px">${reviewError}</div>
+            </c:if>
+
+            <!-- Form viết / cập nhật review -->
             <c:choose>
                 <c:when test="${loggedUser != null}">
                     <div style="background:white;border:1px solid var(--sand);border-radius:var(--radius);padding:24px;margin-bottom:24px">
                         <h4 style="font-size:15px;font-weight:700;color:var(--green-dark);margin-bottom:16px">
-                            ✍️ Viết đánh giá của bạn
+                            <c:choose>
+                                <c:when test="${myReview != null}">✍️ Cập nhật đánh giá của bạn</c:when>
+                                <c:otherwise>✍️ Viết đánh giá của bạn</c:otherwise>
+                            </c:choose>
                         </h4>
                         <form action="${pageContext.request.contextPath}/review" method="post">
                             <input type="hidden" name="productId" value="${product.productId}">
                             <div class="form-group">
                                 <label>Đánh giá</label>
-                                <div style="display:flex;gap:8px;font-size:28px">
+                                <div class="star-rating" id="starRating" style="display:flex;gap:6px;font-size:30px">
                                     <c:forEach begin="1" end="5" var="i">
-                                        <label style="cursor:pointer">
-                                            <input type="radio" name="rating" value="${i}" style="display:none"
-                                                ${i==5?'checked':''}> ⭐
-                                        </label>
+                                        <span class="star-pick"
+                                              data-value="${i}"
+                                              style="cursor:pointer;color:#d1d5db;transition:color .15s">★</span>
                                     </c:forEach>
                                 </div>
+                                <input type="hidden" name="rating" id="ratingInput"
+                                       value="${myReview != null ? myReview.rating : 5}">
                             </div>
                             <div class="form-group">
                                 <label>Nhận xét</label>
                                 <textarea class="form-control" name="comment" rows="3"
-                                          placeholder="Chia sẻ trải nghiệm của bạn về sản phẩm..."></textarea>
+                                          placeholder="Chia sẻ trải nghiệm của bạn về sản phẩm...">${myReview != null ? myReview.comment : ''}</textarea>
                             </div>
-                            <button type="submit" class="btn btn-green">Gửi đánh giá</button>
+                            <button type="submit" class="btn btn-green">
+                                <c:choose>
+                                    <c:when test="${myReview != null}">Cập nhật đánh giá</c:when>
+                                    <c:otherwise>Gửi đánh giá</c:otherwise>
+                                </c:choose>
+                            </button>
                         </form>
                     </div>
                 </c:when>
@@ -197,9 +215,49 @@
                 </c:otherwise>
             </c:choose>
 
-            <p style="color:var(--muted);font-size:14px;font-style:italic">
-                Chưa có đánh giá nào. Hãy là người đầu tiên đánh giá sản phẩm này!
-            </p>
+            <!-- Danh sách đánh giá -->
+            <c:choose>
+                <c:when test="${not empty reviews}">
+                    <h4 style="font-size:15px;font-weight:700;color:var(--green-dark);margin:24px 0 16px">
+                        💬 ${reviewCount} đánh giá từ khách hàng
+                    </h4>
+                    <div style="display:flex;flex-direction:column;gap:16px">
+                        <c:forEach var="rv" items="${reviews}">
+                            <div style="background:white;border:1px solid var(--sand);border-radius:var(--radius);padding:18px 20px">
+                                <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
+                                    <div style="display:flex;align-items:center;gap:10px">
+                                        <div style="width:36px;height:36px;border-radius:50%;background:var(--green-sage);
+                                            color:white;display:flex;align-items:center;justify-content:center;
+                                            font-weight:700;font-size:14px;flex-shrink:0">
+                                                ${rv.userInitial}
+                                        </div>
+                                        <div>
+                                            <div style="font-weight:700;font-size:14px;color:var(--green-dark)">${rv.userName}</div>
+                                            <div style="color:#f59e0b;font-size:14px">
+                                                <c:forEach begin="1" end="5" var="i">
+                                                    <c:choose>
+                                                        <c:when test="${i <= rv.rating}">★</c:when>
+                                                        <c:otherwise>☆</c:otherwise>
+                                                    </c:choose>
+                                                </c:forEach>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <span style="font-size:12px;color:var(--muted);white-space:nowrap">${rv.createdAtFormatted}</span>
+                                </div>
+                                <c:if test="${not empty rv.comment}">
+                                    <p style="margin-top:10px;font-size:14px;line-height:1.7;color:#374151">${rv.comment}</p>
+                                </c:if>
+                            </div>
+                        </c:forEach>
+                    </div>
+                </c:when>
+                <c:otherwise>
+                    <p style="color:var(--muted);font-size:14px;font-style:italic">
+                        Chưa có đánh giá nào. Hãy là người đầu tiên đánh giá sản phẩm này!
+                    </p>
+                </c:otherwise>
+            </c:choose>
         </div>
 
         <!-- SẢN PHẨM LIÊN QUAN -->
@@ -315,6 +373,32 @@
     document.querySelectorAll('.btn-wishlist-toggle').forEach(btn => {
         btn.addEventListener('click', () => toggleWishlist(btn));
     });
+
+    // Star rating picker (viết đánh giá)
+    const starEls    = document.querySelectorAll('#starRating .star-pick');
+    const ratingInput = document.getElementById('ratingInput');
+    if (starEls.length) {
+        function paintStars(value) {
+            starEls.forEach(s => {
+                s.style.color = parseInt(s.dataset.value) <= value ? '#f59e0b' : '#d1d5db';
+            });
+        }
+        paintStars(parseInt(ratingInput.value) || 5);
+        starEls.forEach(s => {
+            s.addEventListener('mouseenter', () => paintStars(parseInt(s.dataset.value)));
+            s.addEventListener('mouseleave', () => paintStars(parseInt(ratingInput.value)));
+            s.addEventListener('click', () => {
+                ratingInput.value = s.dataset.value;
+                paintStars(parseInt(s.dataset.value));
+            });
+        });
+    }
+
+    // Nếu URL có #tab-review (redirect sau khi gửi đánh giá), tự mở tab đó
+    if (window.location.hash === '#tab-review') {
+        const reviewBtn = document.querySelector('.tab-btn[data-tab="tab-review"]');
+        if (reviewBtn) reviewBtn.click();
+    }
 </script>
 
 <jsp:include page="footer.jsp" />

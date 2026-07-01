@@ -2,20 +2,26 @@ package com.caycanhweb.servlet;
 
 import com.caycanhweb.dao.CategoryDAO;
 import com.caycanhweb.dao.ProductDAO;
+import com.caycanhweb.dao.ReviewDAO;
 import com.caycanhweb.model.Product;
+import com.caycanhweb.model.Review;
+import com.caycanhweb.model.User;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
 
 import java.io.IOException;
+import java.util.List;
 
 @WebServlet(urlPatterns = {"/products", "/product"})
 public class ProductServlet extends HttpServlet {
 
     private final ProductDAO  productDAO  = new ProductDAO();
     private final CategoryDAO categoryDAO = new CategoryDAO();
+    private final ReviewDAO   reviewDAO   = new ReviewDAO();
 
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp)
@@ -69,6 +75,27 @@ public class ProductServlet extends HttpServlet {
 
         req.setAttribute("product",        product);
         req.setAttribute("relatedProducts", productDAO.getRelated(product.getCategoryId(), id, 4));
+
+        // ── Danh sách đánh giá của sản phẩm ──────────────────────
+        List<Review> reviews = reviewDAO.getByProductId(id);
+        req.setAttribute("reviews",      reviews);
+        req.setAttribute("reviewCount",  reviews.size());
+
+        // ── Nếu user đã đăng nhập: kiểm tra họ đã đánh giá chưa (để prefill form) ──
+        HttpSession session = req.getSession(false);
+        User loggedUser = session != null ? (User) session.getAttribute("loggedUser") : null;
+        if (loggedUser != null) {
+            Review myReview = reviewDAO.getUserReview(id, loggedUser.getUserId());
+            req.setAttribute("myReview", myReview);
+        }
+
+        // ── Thông báo flash sau khi submit đánh giá (nếu có) ─────
+        if (session != null) {
+            req.setAttribute("reviewSuccess", session.getAttribute("reviewSuccess"));
+            req.setAttribute("reviewError",   session.getAttribute("reviewError"));
+            session.removeAttribute("reviewSuccess");
+            session.removeAttribute("reviewError");
+        }
 
         req.getRequestDispatcher("/views/product-detail.jsp").forward(req, resp);
     }
