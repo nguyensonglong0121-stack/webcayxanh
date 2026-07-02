@@ -93,6 +93,30 @@ public class OrderDAO {
         return list;
     }
 
+    // ── Lấy đơn hàng theo trạng thái (admin lọc) ─────────────────
+    public List<Order> getByStatus(String status) {
+        String sql = """
+                SELECT o.*, u.full_name AS user_full_name
+                FROM orders o
+                LEFT JOIN users u ON o.user_id = u.user_id
+                WHERE o.status = ?
+                ORDER BY o.created_at DESC
+                """;
+        List<Order> list = new ArrayList<>();
+        try (Connection con = DBConnection.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setString(1, status);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    Order ord = mapRow(rs);
+                    try { ord.setUserFullName(rs.getString("user_full_name")); } catch (SQLException ignored) {}
+                    list.add(ord);
+                }
+            }
+        } catch (SQLException e) { e.printStackTrace(); }
+        return list;
+    }
+
     // ── Lấy đơn theo ID kèm items ────────────────────────────────
     public Order getById(int orderId) {
         String sql = "SELECT * FROM orders WHERE order_id=?";

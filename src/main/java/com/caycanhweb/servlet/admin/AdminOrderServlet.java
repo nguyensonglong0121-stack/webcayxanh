@@ -23,7 +23,12 @@ public class AdminOrderServlet extends HttpServlet {
             orderDAO.updateStatus(Integer.parseInt(req.getParameter("id")), req.getParameter("status"));
             resp.sendRedirect(req.getContextPath() + "/admin/orders");
         } else {
-            req.setAttribute("orders", orderDAO.getAll());
+            String status = req.getParameter("status");
+            if (status != null && !status.isEmpty()) {
+                req.setAttribute("orders", orderDAO.getByStatus(status));
+            } else {
+                req.setAttribute("orders", orderDAO.getAll());
+            }
             req.getRequestDispatcher("/admin/order-list.jsp").forward(req, resp);
         }
     }
