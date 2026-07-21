@@ -156,13 +156,59 @@ public class OrderDAO {
     }
 
     // ── Cập nhật trạng thái đơn ──────────────────────────────────
-    public boolean updateStatus(int orderId, String status) {
-        String sql = "UPDATE orders SET status=? WHERE order_id=?";
-        try (Connection con = DBConnection.getConnection();
-             PreparedStatement ps = con.prepareStatement(sql)) {
-            ps.setString(1, status);
-            ps.setInt(2, orderId);
-            return ps.executeUpdate() > 0;
+    // Khi đơn chuyển sang "done" (giao hàng thành công) lần đầu tiên,
+    // tự động trừ tồn kho (stock) của từng sản phẩm trong đơn.
+    // Dùng transaction + khóa dòng (FOR UPDATE) để tránh trừ kho 2 lần
+    // nếu admin bấm cập nhật "done" nhiều lần liên tiếp.
+    public boolean updateStatus(int orderId, String newStatus) {
+        String sqlGetStatus  = "SELECT status FROM orders WHERE order_id=? FOR UPDATE";
+        String sqlUpdate     = "UPDATE orders SET status=? WHERE order_id=?";
+        String sqlItems      = "SELECT product_id, quantity FROM order_items WHERE order_id=?";
+        String sqlDeductStock= "UPDATE products SET stock = GREATEST(stock - ?, 0) WHERE product_id=?";
+
+        try (Connection con = DBConnection.getConnection()) {
+            con.setAutoCommit(false);
+            try {
+                // 1. Lấy trạng thái hiện tại (khóa dòng để tránh race condition)
+                String oldStatus = null;
+                try (PreparedStatement ps = con.prepareStatement(sqlGetStatus)) {
+                    ps.setInt(1, orderId);
+                    try (ResultSet rs = ps.executeQuery()) {
+                        if (rs.next()) oldStatus = rs.getString("status");
+                        else { con.rollback(); return false; } // order không tồn tại
+                    }
+                }
+
+                // 2. Cập nhật trạng thái mới
+                boolean updated;
+                try (PreparedStatement ps = con.prepareStatement(sqlUpdate)) {
+                    ps.setString(1, newStatus);
+                    ps.setInt(2, orderId);
+                    updated = ps.executeUpdate() > 0;
+                }
+
+                // 3. Chỉ trừ kho khi CHUYỂN SANG "done" lần đầu (trước đó chưa phải done)
+                if (updated && "done".equals(newStatus) && !"done".equals(oldStatus)) {
+                    try (PreparedStatement psItems = con.prepareStatement(sqlItems)) {
+                        psItems.setInt(1, orderId);
+                        try (ResultSet rs = psItems.executeQuery();
+                             PreparedStatement psDeduct = con.prepareStatement(sqlDeductStock)) {
+                            while (rs.next()) {
+                                psDeduct.setInt(1, rs.getInt("quantity"));
+                                psDeduct.setInt(2, rs.getInt("product_id"));
+                                psDeduct.addBatch();
+                            }
+                            psDeduct.executeBatch();
+                        }
+                    }
+                }
+
+                con.commit();
+                return updated;
+            } catch (SQLException e) {
+                con.rollback();
+                throw e;
+            }
         } catch (SQLException e) { e.printStackTrace(); }
         return false;
     }

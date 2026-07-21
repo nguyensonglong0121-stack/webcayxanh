@@ -281,4 +281,16 @@ public class ProductDAO {
         if (ts != null) p.setCreatedAt(ts.toLocalDateTime());
         return p;
     }
+    // Trừ tồn kho khi đơn hàng hoàn thành
+    public boolean reduceStock(int productId, int quantity) {
+        String sql = "UPDATE products SET stock = stock - ? WHERE product_id = ? AND stock >= ?";
+        try (Connection con = DBConnection.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setInt(1, quantity);
+            ps.setInt(2, productId);
+            ps.setInt(3, quantity); // đảm bảo không trừ âm
+            return ps.executeUpdate() > 0;
+        } catch (SQLException e) { e.printStackTrace(); }
+        return false;
+    }
 }

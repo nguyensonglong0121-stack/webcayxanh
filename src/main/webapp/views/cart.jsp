@@ -60,11 +60,11 @@
                   <td>${item.unitPriceFormatted}đ</td>
                   <td>
                     <div class="cart-qty">
-                      <button onclick="updateQty(${item.productId}, ${item.quantity - 1})" class="btn btn-sm">−</button>
+                      <button onclick="changeQty(${item.productId}, -1)" class="btn btn-sm">−</button>
                       <input type="number" value="${item.quantity}" min="1"
                              onchange="updateQty(${item.productId}, this.value)"
                              id="qty-${item.productId}" style="width:56px;padding:6px;text-align:center;border:1.5px solid var(--sand);border-radius:6px">
-                      <button onclick="updateQty(${item.productId}, ${item.quantity + 1})" class="btn btn-sm">+</button>
+                      <button onclick="changeQty(${item.productId}, 1)" class="btn btn-sm">+</button>
                     </div>
                   </td>
                   <td id="sub-${item.productId}" style="font-weight:700;color:var(--green-mid)">
@@ -118,20 +118,34 @@
 </section>
 
 <script>
+  // Bấm nút +/- : đọc số lượng HIỆN TẠI trong ô input rồi cộng/trừ delta,
+  // thay vì dùng số cố định tính từ lúc trang tải (đó là nguyên nhân gây lỗi
+  // bấm +/- không ăn sau lần đầu tiên).
+  function changeQty(productId, delta) {
+    const input = document.getElementById('qty-' + productId);
+    let qty = (parseInt(input.value, 10) || 1) + delta;
+    updateQty(productId, qty);
+  }
+
   function updateQty(productId, qty) {
-    if (qty < 1) qty = 0;
+    qty = parseInt(qty, 10);
+    if (isNaN(qty) || qty < 1) qty = 0;
     fetch('${pageContext.request.contextPath}/cart', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
         'X-Requested-With': 'XMLHttpRequest'
       },
-      body: `action=update&productId=${productId}&quantity=${qty}`
+      body: `action=update&productId=\${productId}&quantity=\${qty}`
     })
             .then(r => r.json())
             .then(data => {
               if (qty === 0) {
                 document.getElementById('row-' + productId).remove();
+              } else {
+                // Đồng bộ lại ô số lượng và thành tiền của dòng đó
+                document.getElementById('qty-' + productId).value = data.quantity;
+                document.getElementById('sub-' + productId).textContent = formatVND(data.itemSubtotal) + 'đ';
               }
               document.getElementById('summaryTotal').textContent = formatVND(data.total) + 'đ';
               document.getElementById('summaryFinal').textContent = formatVND(data.total) + 'đ';

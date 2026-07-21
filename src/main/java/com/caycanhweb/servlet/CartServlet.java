@@ -79,12 +79,15 @@ public class CartServlet extends HttpServlet {
             case "update" -> {
                 int productId = Integer.parseInt(req.getParameter("productId"));
                 int quantity  = Integer.parseInt(req.getParameter("quantity"));
+                long itemSubtotal = 0;
                 if (quantity <= 0) {
                     cart.removeIf(i -> i.getProductId() == productId);
+                    quantity = 0;
                 } else {
                     for (CartItem item : cart) {
                         if (item.getProductId() == productId) {
                             item.setQuantity(quantity);
+                            itemSubtotal = item.getSubtotal();
                             break;
                         }
                     }
@@ -93,7 +96,10 @@ public class CartServlet extends HttpServlet {
                 long total = cart.stream().mapToLong(CartItem::getSubtotal).sum();
                 if ("XMLHttpRequest".equals(req.getHeader("X-Requested-With"))) {
                     resp.setContentType("application/json");
-                    resp.getWriter().write("{\"total\":" + total + ",\"cartCount\":" + cart.size() + "}");
+                    resp.getWriter().write("{\"total\":" + total
+                            + ",\"cartCount\":" + cart.size()
+                            + ",\"quantity\":" + quantity
+                            + ",\"itemSubtotal\":" + itemSubtotal + "}");
                     return;
                 }
                 resp.sendRedirect(req.getContextPath() + "/cart");
