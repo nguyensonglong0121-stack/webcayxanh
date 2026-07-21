@@ -46,6 +46,14 @@
             </a>
         </c:if>
 
+        <%-- Báo cáo doanh thu — chỉ Admin --%>
+        <c:if test="${sidebarRole == 'admin'}">
+            <a href="${pageContext.request.contextPath}/admin/reports"
+               class="${currUri.contains('reports') ? 'active' : ''}">
+                📈 Báo cáo doanh thu
+            </a>
+        </c:if>
+
         <%-- Sản phẩm — Admin hoặc Mod có quyền --%>
         <c:if test="${sidebarCanProducts}">
             <a href="${pageContext.request.contextPath}/admin/products"

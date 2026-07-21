@@ -2,9 +2,13 @@ package com.caycanhweb.dao;
 
 import com.caycanhweb.model.Order;
 import com.caycanhweb.model.OrderItem;
+import com.caycanhweb.model.PaymentMethodStat;
+import com.caycanhweb.model.ProductSalesStat;
+import com.caycanhweb.model.RevenuePoint;
 import com.caycanhweb.util.DBConnection;
 
 import java.sql.*;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -237,6 +241,160 @@ public class OrderDAO {
             }
         } catch (SQLException e) { e.printStackTrace(); }
         return false;
+    }
+
+    // ── Doanh thu theo khoảng ngày (tổng, chỉ tính đơn đã hoàn thành) ──
+    public long getRevenueByDateRange(LocalDate from, LocalDate to) {
+        String sql = """
+                SELECT IFNULL(SUM(total_amount),0) FROM orders
+                WHERE status='done' AND DATE(created_at) BETWEEN ? AND ?
+                """;
+        try (Connection con = DBConnection.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setDate(1, Date.valueOf(from));
+            ps.setDate(2, Date.valueOf(to));
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) return rs.getLong(1);
+            }
+        } catch (SQLException e) { e.printStackTrace(); }
+        return 0;
+    }
+
+    // Số đơn đã hoàn thành trong khoảng ngày
+    public int getOrderCountByDateRange(LocalDate from, LocalDate to) {
+        String sql = """
+                SELECT COUNT(*) FROM orders
+                WHERE status='done' AND DATE(created_at) BETWEEN ? AND ?
+                """;
+        try (Connection con = DBConnection.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setDate(1, Date.valueOf(from));
+            ps.setDate(2, Date.valueOf(to));
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) return rs.getInt(1);
+            }
+        } catch (SQLException e) { e.printStackTrace(); }
+        return 0;
+    }
+
+    // ── Doanh thu theo từng ngày trong khoảng (cho biểu đồ) ─────────
+    public List<RevenuePoint> getRevenueByDay(LocalDate from, LocalDate to) {
+        String sql = """
+                SELECT DATE(created_at) AS d,
+                       IFNULL(SUM(total_amount),0) AS revenue,
+                       COUNT(*) AS cnt
+                FROM orders
+                WHERE status='done' AND DATE(created_at) BETWEEN ? AND ?
+                GROUP BY DATE(created_at)
+                ORDER BY d
+                """;
+        List<RevenuePoint> list = new ArrayList<>();
+        try (Connection con = DBConnection.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setDate(1, Date.valueOf(from));
+            ps.setDate(2, Date.valueOf(to));
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    list.add(new RevenuePoint(
+                            rs.getDate("d").toLocalDate().toString(),
+                            rs.getLong("revenue"),
+                            rs.getInt("cnt")));
+                }
+            }
+        } catch (SQLException e) { e.printStackTrace(); }
+        return list;
+    }
+
+    // ── Doanh thu theo từng tháng trong một năm (cho biểu đồ tổng quan) ──
+    public List<RevenuePoint> getRevenueByMonth(int year) {
+        String sql = """
+                SELECT DATE_FORMAT(created_at, '%Y-%m') AS m,
+                       IFNULL(SUM(total_amount),0) AS revenue,
+                       COUNT(*) AS cnt
+                FROM orders
+                WHERE status='done' AND YEAR(created_at) = ?
+                GROUP BY DATE_FORMAT(created_at, '%Y-%m')
+                ORDER BY m
+                """;
+        List<RevenuePoint> list = new ArrayList<>();
+        try (Connection con = DBConnection.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setInt(1, year);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    list.add(new RevenuePoint(
+                            rs.getString("m"),
+                            rs.getLong("revenue"),
+                            rs.getInt("cnt")));
+                }
+            }
+        } catch (SQLException e) { e.printStackTrace(); }
+        return list;
+    }
+
+    // ── Top sản phẩm bán chạy trong khoảng ngày ─────────────────────
+    public List<ProductSalesStat> getTopSellingProducts(LocalDate from, LocalDate to, int limit) {
+        String sql = """
+                SELECT oi.product_id,
+                       oi.product_name,
+                       p.main_image,
+                       SUM(oi.quantity)               AS qty,
+                       SUM(oi.quantity * oi.unit_price) AS revenue
+                FROM order_items oi
+                JOIN orders o     ON oi.order_id = o.order_id
+                LEFT JOIN products p ON oi.product_id = p.product_id
+                WHERE o.status='done' AND DATE(o.created_at) BETWEEN ? AND ?
+                GROUP BY oi.product_id, oi.product_name, p.main_image
+                ORDER BY qty DESC
+                LIMIT ?
+                """;
+        List<ProductSalesStat> list = new ArrayList<>();
+        try (Connection con = DBConnection.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setDate(1, Date.valueOf(from));
+            ps.setDate(2, Date.valueOf(to));
+            ps.setInt(3, limit);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    ProductSalesStat s = new ProductSalesStat();
+                    s.setProductId(rs.getInt("product_id"));
+                    s.setProductName(rs.getString("product_name"));
+                    s.setMainImage(rs.getString("main_image"));
+                    s.setQuantitySold(rs.getInt("qty"));
+                    s.setRevenue(rs.getLong("revenue"));
+                    list.add(s);
+                }
+            }
+        } catch (SQLException e) { e.printStackTrace(); }
+        return list;
+    }
+
+    // ── Doanh thu theo phương thức thanh toán trong khoảng ngày ─────
+    public List<PaymentMethodStat> getRevenueByPaymentMethod(LocalDate from, LocalDate to) {
+        String sql = """
+                SELECT payment_method,
+                       IFNULL(SUM(total_amount),0) AS revenue,
+                       COUNT(*) AS cnt
+                FROM orders
+                WHERE status='done' AND DATE(created_at) BETWEEN ? AND ?
+                GROUP BY payment_method
+                ORDER BY revenue DESC
+                """;
+        List<PaymentMethodStat> list = new ArrayList<>();
+        try (Connection con = DBConnection.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setDate(1, Date.valueOf(from));
+            ps.setDate(2, Date.valueOf(to));
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    list.add(new PaymentMethodStat(
+                            rs.getString("payment_method"),
+                            rs.getLong("revenue"),
+                            rs.getInt("cnt")));
+                }
+            }
+        } catch (SQLException e) { e.printStackTrace(); }
+        return list;
     }
 
     // ── Thống kê cho dashboard ────────────────────────────────────
