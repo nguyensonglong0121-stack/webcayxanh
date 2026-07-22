@@ -1,5 +1,6 @@
 package com.caycanhweb.servlet.admin;
 
+import com.caycanhweb.dao.InventoryDAO;
 import com.caycanhweb.dao.OrderDAO;
 import com.caycanhweb.dao.ProductDAO;
 import com.caycanhweb.dao.UserDAO;
@@ -12,9 +13,12 @@ import java.io.IOException;
 
 @WebServlet("/admin/dashboard")
 public class AdminDashboardServlet extends HttpServlet {
-    private final OrderDAO   orderDAO   = new OrderDAO();
-    private final ProductDAO productDAO = new ProductDAO();
-    private final UserDAO    userDAO    = new UserDAO();
+    private static final int LOW_STOCK_THRESHOLD = 5;
+
+    private final OrderDAO     orderDAO     = new OrderDAO();
+    private final ProductDAO   productDAO   = new ProductDAO();
+    private final UserDAO      userDAO      = new UserDAO();
+    private final InventoryDAO inventoryDAO = new InventoryDAO();
 
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp)
@@ -26,6 +30,8 @@ public class AdminDashboardServlet extends HttpServlet {
         req.setAttribute("recentOrders",          orderDAO.getAll());
         req.setAttribute("totalUsers",            userDAO.getAll().size());
         req.setAttribute("totalProducts",         productDAO.getAll().size());
+        req.setAttribute("lowStockCount",         inventoryDAO.countLowStock(LOW_STOCK_THRESHOLD));
+        req.setAttribute("outOfStockCount",       inventoryDAO.countOutOfStock());
         req.getRequestDispatcher("/admin/dashboard.jsp").forward(req, resp);
     }
 }

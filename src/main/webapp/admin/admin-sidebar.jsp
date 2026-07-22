@@ -70,6 +70,14 @@
             </a>
         </c:if>
 
+        <%-- Tồn kho — Admin hoặc Mod có quyền sản phẩm --%>
+        <c:if test="${sidebarCanProducts}">
+            <a href="${pageContext.request.contextPath}/admin/inventory"
+               class="${currUri.contains('inventory') ? 'active' : ''}">
+                🗃️ Tồn kho
+            </a>
+        </c:if>
+
         <%-- Người dùng — Admin hoặc Mod có quyền --%>
         <c:if test="${sidebarCanUsers}">
             <a href="${pageContext.request.contextPath}/admin/users"

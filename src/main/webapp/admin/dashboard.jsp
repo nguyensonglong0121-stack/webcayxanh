@@ -59,6 +59,19 @@
         </div>
     </div>
 
+    <!-- CẢNH BÁO TỒN KHO -->
+    <c:if test="${lowStockCount > 0 || outOfStockCount > 0}">
+        <div class="alert alert-danger" style="display:flex;align-items:center;justify-content:space-between">
+            <span>
+                ⚠️
+                <c:if test="${outOfStockCount > 0}"><strong>${outOfStockCount}</strong> sản phẩm đã hết hàng.</c:if>
+                <c:if test="${lowStockCount > 0}"><strong>${lowStockCount}</strong> sản phẩm sắp hết hàng.</c:if>
+            </span>
+            <a href="${pageContext.request.contextPath}/admin/inventory?filter=low" class="btn btn-sm"
+               style="background:white;color:var(--danger);border:1px solid currentColor">Xem tồn kho →</a>
+        </div>
+    </c:if>
+
     <!-- ĐƠN HÀNG GẦN ĐÂY -->
     <div class="admin-card">
         <div class="admin-card-header">

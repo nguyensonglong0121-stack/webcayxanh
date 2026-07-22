@@ -54,6 +54,8 @@ public class AuthFilter implements Filter {
 
                 if (uri.contains("/admin/products")) {
                     allowed = permissionDAO.hasPermission(userId, "products");
+                } else if (uri.contains("/admin/inventory")) {
+                    allowed = permissionDAO.hasPermission(userId, "products");
                 } else if (uri.contains("/admin/orders")) {
                     allowed = permissionDAO.hasPermission(userId, "orders");
                 } else if (uri.contains("/admin/users")) {
