@@ -8,13 +8,19 @@ import java.nio.charset.StandardCharsets;
 
 public class GHNService {
 
-    // ⚠️ Thay bằng Token và Shop ID của bạn từ GHN Dev
-    private static final String TOKEN   = "e3b8dae3-50db-11f1-a973-aee5264794df";
-    private static final String SHOP_ID = "200907";
+    // Token/ShopId được đọc từ config.properties (không commit) hoặc biến môi trường
+    // GHN_TOKEN / GHN_SHOP_ID — xem AppConfig.java và config.properties.example
+    private static final String TOKEN   = AppConfig.get("ghn.token", "");
+    private static final String SHOP_ID = AppConfig.get("ghn.shop.id", "");
 
     private static final String BASE_URL = "https://dev-online-gateway.ghn.vn/shiip/public-api";
     private static final HttpClient HTTP = HttpClient.newHttpClient();
     private static final Gson GSON = new Gson();
+
+    // Cân nặng mặc định (gram) dùng khi tính phí ship cho 1 đơn cây cảnh —
+    // dùng chung giữa GHNServlet (preview lúc chọn địa chỉ) và CheckoutServlet
+    // (tính lại lúc đặt hàng thật) để 2 nơi luôn ra cùng 1 số tiền.
+    public static final int DEFAULT_WEIGHT_GRAM = 500;
 
     // ── Lấy danh sách Tỉnh/Thành ─────────────────────
     public static JsonArray getProvinces() {
@@ -114,6 +120,10 @@ public class GHNService {
 
     // ── HTTP GET ──────────────────────────────────────
     private static String get(String path) {
+        if (TOKEN.isBlank() || SHOP_ID.isBlank()) {
+            System.err.println("[GHNService] Chưa cấu hình ghn.token / ghn.shop.id trong config.properties.");
+            return null;
+        }
         try {
             HttpRequest req = HttpRequest.newBuilder()
                     .uri(URI.create(BASE_URL + path))
@@ -132,6 +142,10 @@ public class GHNService {
 
     // ── HTTP POST ─────────────────────────────────────
     private static String post(String path, String body) {
+        if (TOKEN.isBlank() || SHOP_ID.isBlank()) {
+            System.err.println("[GHNService] Chưa cấu hình ghn.token / ghn.shop.id trong config.properties.");
+            return null;
+        }
         try {
             HttpRequest req = HttpRequest.newBuilder()
                     .uri(URI.create(BASE_URL + path))

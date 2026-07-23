@@ -1,10 +1,13 @@
 package com.caycanhweb.servlet;
 
+import com.caycanhweb.dao.CouponDAO;
 import com.caycanhweb.dao.OrderDAO;
 import com.caycanhweb.model.CartItem;
+import com.caycanhweb.model.Coupon;
 import com.caycanhweb.model.Order;
 import com.caycanhweb.model.OrderItem;
 import com.caycanhweb.model.User;
+import com.caycanhweb.util.GHNService;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
@@ -20,6 +23,7 @@ import java.util.List;
 public class CheckoutServlet extends HttpServlet {
 
     private final OrderDAO orderDAO = new OrderDAO();
+    private final CouponDAO couponDAO = new CouponDAO();
 
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp)
@@ -75,16 +79,55 @@ public class CheckoutServlet extends HttpServlet {
             return;
         }
 
-        // ── Tính tiền + phí ship ──────────────────────────
-        long subtotal    = cart.stream().mapToLong(CartItem::getSubtotal).sum();
-        long discount    = 0;
-        long shippingFee = 0;
+        // ── Lấy thông tin địa chỉ GHN (bắt buộc để tự tính phí ship) ──
+        int districtId;
         try {
-            String feeParam = req.getParameter("shippingFee");
-            if (feeParam != null && !feeParam.isBlank()) {
-                shippingFee = Long.parseLong(feeParam);
+            districtId = Integer.parseInt(req.getParameter("district_id"));
+        } catch (NumberFormatException | NullPointerException e) {
+            districtId = 0;
+        }
+        String wardCode = req.getParameter("ward_code");
+
+        if (districtId <= 0 || wardCode == null || wardCode.isBlank()) {
+            req.setAttribute("error", "Vui lòng chọn đầy đủ Tỉnh/Quận/Phường để tính phí vận chuyển!");
+            req.getRequestDispatcher("/views/checkout.jsp").forward(req, resp);
+            return;
+        }
+
+        // ── Tính tiền hàng ─────────────────────────────────
+        long subtotal = cart.stream().mapToLong(CartItem::getSubtotal).sum();
+
+        // ── Phí ship: LUÔN tự tính lại ở server bằng GHNService, KHÔNG
+        //    dùng giá trị "shippingFee" mà client gửi lên (hidden input đó
+        //    chỉ để hiển thị preview cho người dùng xem trước, có thể bị
+        //    sửa qua DevTools nên không được tin để tính tiền thật). ──
+        long shippingFee = GHNService.calculateFee(districtId, wardCode, GHNService.DEFAULT_WEIGHT_GRAM);
+        if (shippingFee <= 0) {
+            // calculateFee trả 0 cả khi gọi GHN thất bại lẫn khi phí thật sự = 0
+            // (GHN không có phí ship = 0đ) → coi 0 là lỗi, không cho đặt hàng
+            // free ship ngoài ý muốn do API lỗi tạm thời.
+            req.setAttribute("error", "Không tính được phí vận chuyển cho địa chỉ này, vui lòng thử lại!");
+            req.getRequestDispatcher("/views/checkout.jsp").forward(req, resp);
+            return;
+        }
+
+        // ── Mã giảm giá: LUÔN validate + tính lại discount ở server bằng
+        //    CouponDAO, KHÔNG tin bất kỳ số tiền giảm nào gửi từ client. ──
+        long discount = 0;
+        if (!couponCode.isEmpty()) {
+            Coupon coupon = couponDAO.findByCode(couponCode);
+            if (coupon == null || !coupon.isCurrentlyValid()) {
+                req.setAttribute("error", "Mã giảm giá \"" + couponCode + "\" không hợp lệ hoặc đã hết hạn!");
+                req.getRequestDispatcher("/views/checkout.jsp").forward(req, resp);
+                return;
             }
-        } catch (NumberFormatException ignored) {}
+            discount = coupon.calculateDiscount(subtotal);
+            if (discount <= 0) {
+                req.setAttribute("error", "Đơn hàng chưa đạt giá trị tối thiểu để dùng mã \"" + couponCode + "\"!");
+                req.getRequestDispatcher("/views/checkout.jsp").forward(req, resp);
+                return;
+            }
+        }
 
         long total = subtotal - discount + shippingFee;
 
@@ -113,6 +156,9 @@ public class CheckoutServlet extends HttpServlet {
         int orderId = orderDAO.createOrder(order, items);
 
         if (orderId > 0) {
+            if (!couponCode.isEmpty()) {
+                couponDAO.incrementUsedCount(couponCode);
+            }
             session.removeAttribute("cart");
             resp.sendRedirect(req.getContextPath() + "/order-success?id=" + orderId);
         } else {

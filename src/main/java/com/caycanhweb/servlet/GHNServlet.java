@@ -42,9 +42,8 @@ public class GHNServlet extends HttpServlet {
             case "/fee" -> {
                 int    districtId = Integer.parseInt(req.getParameter("district_id"));
                 String wardCode   = req.getParameter("ward_code");
-                int    weight     = 500; // gram mặc định cho cây cảnh
 
-                int fee = GHNService.calculateFee(districtId, wardCode, weight);
+                int fee = GHNService.calculateFee(districtId, wardCode, GHNService.DEFAULT_WEIGHT_GRAM);
                 resp.getWriter().write("{\"fee\":" + fee + "}");
             }
 

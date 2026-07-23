@@ -95,7 +95,7 @@
           <div class="cart-summary">
             <h3>📋 Tóm tắt đơn hàng</h3>
             <div class="summary-row"><span>Tạm tính</span><span id="summaryTotal"><fmt:formatNumber value="${total}" pattern="#,###"/>đ</span></div>
-            <div class="summary-row"><span>Phí giao hàng</span><span style="color:green">Miễn phí</span></div>
+            <div class="summary-row"><span>Phí giao hàng</span><span style="color:var(--muted);font-style:italic;font-size:13px">Tính ở bước thanh toán</span></div>
             <div class="summary-row total"><span>Tổng cộng</span><span id="summaryFinal"><fmt:formatNumber value="${total}" pattern="#,###"/>đ</span></div>
 
             <div style="margin:16px 0">
@@ -118,6 +118,9 @@
 </section>
 
 <script>
+  var CTX = '${pageContext.request.contextPath}';
+  var CART_TOTAL = ${total};
+
   // Bấm nút +/- : đọc số lượng HIỆN TẠI trong ô input rồi cộng/trừ delta,
   // thay vì dùng số cố định tính từ lúc trang tải (đó là nguyên nhân gây lỗi
   // bấm +/- không ăn sau lần đầu tiên).
@@ -150,6 +153,10 @@
               document.getElementById('summaryTotal').textContent = formatVND(data.total) + 'đ';
               document.getElementById('summaryFinal').textContent = formatVND(data.total) + 'đ';
               document.getElementById('cartBadge') && (document.getElementById('cartBadge').textContent = data.cartCount);
+              // Đồng bộ lại CART_TOTAL để lần sau bấm "Áp dụng" mã giảm giá,
+              // server nhận đúng số tiền tạm tính MỚI NHẤT (trước đây bị bỏ sót
+              // dòng này nên coupon check luôn dùng số tiền lúc mới tải trang).
+              CART_TOTAL = data.total;
             });
   }
 
@@ -161,8 +168,21 @@
     const code = document.getElementById('couponInput').value.trim();
     const msg  = document.getElementById('couponMsg');
     if (!code) { msg.textContent = 'Vui lòng nhập mã!'; msg.style.color='red'; return; }
-    msg.textContent = 'Mã "' + code + '" đã được áp dụng (tính khi thanh toán)';
-    msg.style.color = 'green';
+
+    msg.textContent = 'Đang kiểm tra...';
+    msg.style.color = 'var(--muted)';
+
+    fetch(CTX + '/coupon/check?code=' + encodeURIComponent(code) + '&subtotal=' + CART_TOTAL)
+      .then(r => r.json())
+      .then(data => {
+        msg.textContent = (data.valid ? '✅ ' : '❌ ') + data.message +
+          (data.valid ? ' (nhập lại mã này ở bước thanh toán để được trừ tiền)' : '');
+        msg.style.color = data.valid ? 'green' : 'red';
+      })
+      .catch(() => {
+        msg.textContent = '⚠️ Không kiểm tra được mã, thử lại sau';
+        msg.style.color = 'red';
+      });
   }
 </script>
 

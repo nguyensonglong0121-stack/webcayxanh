@@ -115,7 +115,10 @@
               Chọn địa chỉ giao hàng để xem phí ship
             </div>
           </div>
-          <input type="hidden" name="shippingFee" id="shippingFeeInput" value="0">
+          <!-- Chỉ để hiển thị preview cho người dùng xem trước khi bấm đặt hàng.
+               KHÔNG có "name" nên sẽ không được gửi lên server — CheckoutServlet
+               luôn tự tính lại phí ship bằng GHNService, không đọc giá trị này. -->
+          <input type="hidden" id="shippingFeeInput" value="0">
         </div>
 
         <!-- PHƯƠNG THỨC THANH TOÁN -->
@@ -185,6 +188,10 @@
             <span style="font-size:14px">Phí vận chuyển</span>
             <span style="font-weight:700;color:var(--green-mid)" id="feeDisplay">Chưa tính</span>
           </div>
+          <div id="discountRow" style="display:none;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--sand)">
+            <span style="font-size:14px">Giảm giá</span>
+            <span style="font-weight:700;color:#c0392b" id="discountDisplay">-0đ</span>
+          </div>
           <div style="display:flex;justify-content:space-between;padding-top:12px">
             <span style="font-size:17px;font-weight:800;color:var(--green-dark)">Tổng cộng</span>
             <span style="font-size:20px;font-weight:800;color:var(--green-mid)" id="grandTotal">
@@ -200,6 +207,8 @@
 <script>
   var CTX        = '<%=contextPath%>';
   var BASE_TOTAL = <%=total%>;
+  var currentFee = 0;
+  var currentDiscount = 0;
 
   window.addEventListener('DOMContentLoaded', function() {
     fetch(CTX + '/ghn/provinces')
@@ -275,12 +284,13 @@
             .then(function(r) { return r.json(); })
             .then(function(data) {
               var fee = data.fee || 0;
+              currentFee = fee;
               document.getElementById('shippingLoading').style.display = 'none';
               document.getElementById('shippingResult').style.display  = 'block';
               document.getElementById('shippingFeeText').textContent   = formatVND(fee) + 'đ';
               document.getElementById('shippingFeeInput').value        = fee;
               document.getElementById('feeDisplay').textContent        = formatVND(fee) + 'đ';
-              document.getElementById('grandTotal').textContent        = formatVND(BASE_TOTAL + fee) + 'đ';
+              updateGrandTotal();
             })
             .catch(function(e) {
               document.getElementById('shippingLoading').style.display = 'none';
@@ -295,8 +305,22 @@
     document.getElementById('shippingResult').style.display  = 'none';
     document.getElementById('shippingLoading').style.display = 'none';
     document.getElementById('shippingFeeInput').value        = 0;
+    currentFee = 0;
     document.getElementById('feeDisplay').textContent        = 'Chưa tính';
-    document.getElementById('grandTotal').textContent        = formatVND(BASE_TOTAL) + 'đ';
+    updateGrandTotal();
+  }
+
+  function updateGrandTotal() {
+    var discountRow = document.getElementById('discountRow');
+    if (currentDiscount > 0) {
+      discountRow.style.display = 'flex';
+      document.getElementById('discountDisplay').textContent = '-' + formatVND(currentDiscount) + 'đ';
+    } else {
+      discountRow.style.display = 'none';
+    }
+    var grand = BASE_TOTAL - currentDiscount + currentFee;
+    if (grand < 0) grand = 0;
+    document.getElementById('grandTotal').textContent = formatVND(grand) + 'đ';
   }
 
   function formatVND(n) {
@@ -304,11 +328,27 @@
   }
 
   function checkCoupon() {
-    var code = document.getElementById('couponCode').value.trim().toUpperCase();
+    var code = document.getElementById('couponCode').value.trim();
     var res  = document.getElementById('couponResult');
-    var coupons = {'XANH10':'10%','GIAM50K':'50.000đ','CANH20':'20%'};
-    if (coupons[code]) { res.textContent = '✅ Mã hợp lệ! Giảm ' + coupons[code]; res.style.color = 'green'; }
-    else if (code)     { res.textContent = '❌ Mã không hợp lệ'; res.style.color = 'red'; }
+    if (!code) { res.textContent = 'Vui lòng nhập mã giảm giá'; res.style.color = 'red'; return; }
+
+    res.textContent = 'Đang kiểm tra...';
+    res.style.color = 'var(--muted)';
+
+    fetch(CTX + '/coupon/check?code=' + encodeURIComponent(code) + '&subtotal=' + BASE_TOTAL)
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+              res.textContent = (data.valid ? '✅ ' : '❌ ') + data.message;
+              res.style.color = data.valid ? 'green' : 'red';
+              currentDiscount = data.valid ? data.discount : 0;
+              updateGrandTotal();
+            })
+            .catch(function(e) {
+              res.textContent = '⚠️ Không kiểm tra được mã, thử lại sau';
+              res.style.color = 'red';
+              currentDiscount = 0;
+              updateGrandTotal();
+            });
   }
 </script>
 
