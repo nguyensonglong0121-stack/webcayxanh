@@ -22,6 +22,12 @@
     </div>
     <h1 class="section-title" style="margin-bottom:28px">🛒 Giỏ hàng của bạn</h1>
 
+    <c:if test="${not empty param.warning}">
+      <div class="alert alert-danger" style="background:#fff3cd;color:#7a5b00;border:1px solid #ffe08a">
+        ⚠️ <c:out value="${param.warning}"/>
+      </div>
+    </c:if>
+
     <c:choose>
       <c:when test="${empty cart}">
         <div class="empty-state">
@@ -94,6 +100,7 @@
           <!-- Tóm tắt đơn hàng -->
           <div class="cart-summary">
             <h3>📋 Tóm tắt đơn hàng</h3>
+            <div id="stockWarning" style="display:none;background:#fff3cd;color:#7a5b00;border:1px solid #ffe08a;border-radius:6px;padding:8px 10px;font-size:12px;margin-bottom:10px"></div>
             <div class="summary-row"><span>Tạm tính</span><span id="summaryTotal"><fmt:formatNumber value="${total}" pattern="#,###"/>đ</span></div>
             <div class="summary-row"><span>Phí giao hàng</span><span style="color:var(--muted);font-style:italic;font-size:13px">Tính ở bước thanh toán</span></div>
             <div class="summary-row total"><span>Tổng cộng</span><span id="summaryFinal"><fmt:formatNumber value="${total}" pattern="#,###"/>đ</span></div>
@@ -157,6 +164,14 @@
               // server nhận đúng số tiền tạm tính MỚI NHẤT (trước đây bị bỏ sót
               // dòng này nên coupon check luôn dùng số tiền lúc mới tải trang).
               CART_TOTAL = data.total;
+
+              var stockMsg = document.getElementById('stockWarning');
+              if (data.warning) {
+                stockMsg.textContent = '⚠️ ' + data.warning; // textContent tự an toàn, không cần escape
+                stockMsg.style.display = 'block';
+              } else if (stockMsg) {
+                stockMsg.style.display = 'none';
+              }
             });
   }
 

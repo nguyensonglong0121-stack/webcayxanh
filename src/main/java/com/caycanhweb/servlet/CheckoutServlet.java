@@ -2,10 +2,12 @@ package com.caycanhweb.servlet;
 
 import com.caycanhweb.dao.CouponDAO;
 import com.caycanhweb.dao.OrderDAO;
+import com.caycanhweb.dao.ProductDAO;
 import com.caycanhweb.model.CartItem;
 import com.caycanhweb.model.Coupon;
 import com.caycanhweb.model.Order;
 import com.caycanhweb.model.OrderItem;
+import com.caycanhweb.model.Product;
 import com.caycanhweb.model.User;
 import com.caycanhweb.util.GHNService;
 import jakarta.servlet.ServletException;
@@ -24,6 +26,7 @@ public class CheckoutServlet extends HttpServlet {
 
     private final OrderDAO orderDAO = new OrderDAO();
     private final CouponDAO couponDAO = new CouponDAO();
+    private final ProductDAO productDAO = new ProductDAO();
 
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp)
@@ -55,6 +58,28 @@ public class CheckoutServlet extends HttpServlet {
 
         if (cart == null || cart.isEmpty()) {
             resp.sendRedirect(req.getContextPath() + "/cart");
+            return;
+        }
+
+        // ── Kiểm tra lại tồn kho NGAY LÚC ĐẶT HÀNG (không tin số lượng đã
+        //    thêm vào giỏ từ trước — tồn kho có thể đã đổi vì người khác mua
+        //    trước, hoặc admin vừa chỉnh sửa). Đây là chốt chặn cuối cùng,
+        //    quan trọng nhất vì là bước ngay trước khi tạo đơn thật. ──
+        StringBuilder stockError = new StringBuilder();
+        for (CartItem c : cart) {
+            Product p = productDAO.getById(c.getProductId());
+            if (p == null) {
+                stockError.append("Sản phẩm \"").append(c.getProductName()).append("\" không còn tồn tại. ");
+            } else if (c.getQuantity() > p.getStock()) {
+                stockError.append("\"").append(p.getName()).append("\" chỉ còn ")
+                        .append(p.getStock()).append(" (giỏ hàng đang đặt ")
+                        .append(c.getQuantity()).append("). ");
+            }
+        }
+        if (stockError.length() > 0) {
+            req.setAttribute("error", "Giỏ hàng có thay đổi về tồn kho: " + stockError
+                    + "Vui lòng quay lại giỏ hàng để cập nhật số lượng.");
+            req.getRequestDispatcher("/views/checkout.jsp").forward(req, resp);
             return;
         }
 

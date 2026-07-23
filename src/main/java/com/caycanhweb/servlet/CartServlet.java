@@ -49,37 +49,70 @@ public class CartServlet extends HttpServlet {
                 int quantity  = parseIntOrOne(req.getParameter("quantity"));
 
                 Product p = productDAO.getById(productId);
+                String warning = null;
+
                 if (p != null) {
                     boolean found = false;
                     for (CartItem item : cart) {
                         if (item.getProductId() == productId) {
-                            item.setQuantity(item.getQuantity() + quantity);
+                            int newQty = item.getQuantity() + quantity;
+                            if (newQty > p.getStock()) {
+                                newQty  = p.getStock();
+                                warning = "Kho chỉ còn " + p.getStock() + " \"" + p.getName()
+                                        + "\" — đã cập nhật số lượng tối đa có thể.";
+                            }
+                            item.setQuantity(newQty);
                             found = true;
                             break;
                         }
                     }
                     if (!found) {
-                        cart.add(new CartItem(
-                                p.getProductId(),
-                                p.getName(),
-                                p.getMainImage(),
-                                p.getDisplayPrice(),
-                                quantity));
+                        int qtyToAdd = quantity;
+                        if (qtyToAdd > p.getStock()) {
+                            qtyToAdd = p.getStock();
+                            warning = "Kho chỉ còn " + p.getStock() + " \"" + p.getName()
+                                    + "\" — đã thêm số lượng tối đa có thể.";
+                        }
+                        if (qtyToAdd > 0) {
+                            cart.add(new CartItem(
+                                    p.getProductId(),
+                                    p.getName(),
+                                    p.getMainImage(),
+                                    p.getDisplayPrice(),
+                                    qtyToAdd));
+                        } else {
+                            warning = "\"" + p.getName() + "\" hiện đã hết hàng.";
+                        }
                     }
                 }
                 // AJAX trả về số lượng sản phẩm trong giỏ
                 if ("XMLHttpRequest".equals(req.getHeader("X-Requested-With"))) {
                     resp.setContentType("application/json");
-                    resp.getWriter().write("{\"cartCount\":" + cart.size() + "}");
+                    String warnJson = warning != null ? ",\"warning\":\"" + escapeJson(warning) + "\"" : "";
+                    resp.getWriter().write("{\"cartCount\":" + cart.size() + warnJson + "}");
                     return;
                 }
-                resp.sendRedirect(req.getContextPath() + "/cart");
+                String redirectUrl = req.getContextPath() + "/cart";
+                if (warning != null) {
+                    redirectUrl += "?warning=" + java.net.URLEncoder.encode(warning, java.nio.charset.StandardCharsets.UTF_8);
+                }
+                resp.sendRedirect(redirectUrl);
             }
 
             case "update" -> {
                 int productId = Integer.parseInt(req.getParameter("productId"));
                 int quantity  = Integer.parseInt(req.getParameter("quantity"));
                 long itemSubtotal = 0;
+                String warning = null;
+
+                if (quantity > 0) {
+                    Product p = productDAO.getById(productId);
+                    if (p != null && quantity > p.getStock()) {
+                        warning  = "Kho chỉ còn " + p.getStock() + " \"" + p.getName() + "\".";
+                        quantity = p.getStock(); // có thể về 0 nếu vừa hết hàng
+                    }
+                }
+
                 if (quantity <= 0) {
                     cart.removeIf(i -> i.getProductId() == productId);
                     quantity = 0;
@@ -96,10 +129,11 @@ public class CartServlet extends HttpServlet {
                 long total = cart.stream().mapToLong(CartItem::getSubtotal).sum();
                 if ("XMLHttpRequest".equals(req.getHeader("X-Requested-With"))) {
                     resp.setContentType("application/json");
+                    String warnJson = warning != null ? ",\"warning\":\"" + escapeJson(warning) + "\"" : "";
                     resp.getWriter().write("{\"total\":" + total
                             + ",\"cartCount\":" + cart.size()
                             + ",\"quantity\":" + quantity
-                            + ",\"itemSubtotal\":" + itemSubtotal + "}");
+                            + ",\"itemSubtotal\":" + itemSubtotal + warnJson + "}");
                     return;
                 }
                 resp.sendRedirect(req.getContextPath() + "/cart");
@@ -122,5 +156,11 @@ public class CartServlet extends HttpServlet {
 
     private int parseIntOrOne(String s) {
         try { int v = Integer.parseInt(s); return v < 1 ? 1 : v; } catch (Exception e) { return 1; }
+    }
+
+    // Escape ký tự đặc biệt để chèn an toàn vào chuỗi JSON viết tay (tránh vỡ JSON
+    // nếu tên sản phẩm chứa dấu ngoặc kép hoặc dấu xuống dòng).
+    private String escapeJson(String s) {
+        return s.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", " ").replace("\r", "");
     }
 }
