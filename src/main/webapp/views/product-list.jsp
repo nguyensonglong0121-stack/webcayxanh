@@ -149,7 +149,7 @@
                                         </div>
                                         <c:choose>
                                             <c:when test="${p.stock > 0}">
-                                                <form action="${pageContext.request.contextPath}/cart" method="post">
+                                                <form action="${pageContext.request.contextPath}/cart" method="post" data-cart>
                                                     <input type="hidden" name="action"    value="add">
                                                     <input type="hidden" name="productId" value="${p.productId}">
                                                     <input type="hidden" name="quantity"  value="1">

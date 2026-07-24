@@ -87,7 +87,7 @@
                 <!-- Thêm giỏ hàng -->
                 <div style="display:flex;gap:12px;align-items:center">
                     <c:if test="${product.stock > 0}">
-                        <form action="${pageContext.request.contextPath}/cart" method="post"
+                        <form action="${pageContext.request.contextPath}/cart" method="post" data-cart
                               style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;flex:1">
                             <input type="hidden" name="action"    value="add">
                             <input type="hidden" name="productId" value="${product.productId}">
@@ -300,7 +300,7 @@
                                         <span class="price-old">${p.price}đ</span>
                                     </c:if>
                                 </div>
-                                <form action="${pageContext.request.contextPath}/cart" method="post">
+                                <form action="${pageContext.request.contextPath}/cart" method="post" data-cart>
                                     <input type="hidden" name="action"    value="add">
                                     <input type="hidden" name="productId" value="${p.productId}">
                                     <input type="hidden" name="quantity"  value="1">

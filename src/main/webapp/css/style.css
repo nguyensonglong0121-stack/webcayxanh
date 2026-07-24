@@ -92,6 +92,11 @@ input, select, textarea, button { font-family: inherit; font-size: inherit; }
     display: flex; align-items: center; justify-content: center;
     line-height: 1;
 }
+/* Toast thông báo (thêm giỏ hàng...) — dùng trong js/main.js */
+@keyframes slideIn {
+    from { transform: translateX(40px); opacity: 0; }
+    to   { transform: translateX(0);    opacity: 1; }
+}
 .btn-nav-login {
     background: var(--green-light);
     color: var(--green-dark);
